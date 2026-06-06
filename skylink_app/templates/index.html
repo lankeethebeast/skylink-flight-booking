@@ -1,0 +1,756 @@
+{% extends "base.html" %}
+{% block title %}Find Cheap Flights · SkyLink{% endblock %}
+{% block content %}
+
+<!-- Hero Section -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <span class="hero-plane">✈</span>
+  <span class="hero-plane">✈</span>
+  <div class="hero-content">
+    <div class="hero-badge">🌟 Trusted by 500+ Travel Partners</div>
+    <h1>Discover Your Next<br>Adventure Skyward</h1>
+    <p>Access live, supplier-direct flight inventories from 100+ airlines worldwide. Book premium flights instantly at competitive B2B rates.</p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="hero-stat-value">100+</span>
+        <span class="hero-stat-label">Airlines</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">5000+</span>
+        <span class="hero-stat-label">Routes</span>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-value">24/7</span>
+        <span class="hero-stat-label">Support</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Search Form Card -->
+<section class="card card-search" style="max-width: 1100px;">
+  <div class="search-icon-row">
+    <span>🔍</span>
+    <h1 style="margin-bottom: 0;">Search & Book Premium Flights</h1>
+  </div>
+  <p class="muted">Access live, supplier-direct flight inventories instantly.</p>
+  
+  <form action="{{ url_for('search') }}" method="post" id="searchForm" style="display: flex; flex-direction: column; gap: 1rem; position: relative;">
+    <!-- Loading Overlay -->
+    <div class="search-loading-overlay" id="searchLoadingOverlay">
+      <div class="spinner" style="width: 48px; height: 48px;"></div>
+      <div class="search-loading-text">Searching flights...</div>
+      <div style="font-size: 0.8rem; color: var(--text-muted);">Finding the best options for you</div>
+    </div>
+    <!-- Row 1: Origin → Destination → Trip Type → Departure Date → Return Date (conditional) -->
+    <div class="search-main-grid" style="display: grid; grid-template-columns: 1.55fr 1.55fr 2.15fr 2.45fr 2.1fr; gap: 0.75rem; align-items: end;" id="mainSearchRow">
+      <label for="fromCode" id="singleFromWrap" style="margin: 0;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Origin</span>
+        <div style="display:flex; gap:6px; align-items:center; background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass);">
+          <span>✈️</span>
+          <input name="from_code" id="fromCode" placeholder="City or airport" maxlength="20" style="text-transform: uppercase; flex:1; border: none; background: transparent; color: var(--text-main); font-size: 0.95rem; padding: 0; outline: none;" autocomplete="off" />
+          <button type="button" id="swapBtn" title="Swap origin and destination" aria-label="Swap origin and destination" style="background: none; border: none; color: var(--color-primary); cursor: pointer; font-size: 1.1rem; padding: 2px;">⇄</button>
+        </div>
+      </label>
+      
+      <label for="toCode" id="singleToWrap" style="margin: 0;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Destination</span>
+        <div style="display:flex; gap:6px; align-items:center; background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass);">
+          <span>📍</span>
+          <input name="to_code" id="toCode" placeholder="City or airport" maxlength="20" style="text-transform: uppercase; flex:1; border: none; background: transparent; color: var(--text-main); font-size: 0.95rem; padding: 0; outline: none;" autocomplete="off" />
+        </div>
+      </label>
+
+      <label for="tripType" style="margin: 0;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Trip Type</span>
+        <div style="background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass);">
+          <select name="trip_type" id="tripType" style="background: transparent; border: none; color: var(--text-main); width: 100%; font-size: 0.95rem; padding: 0; outline: none; cursor: pointer;">
+            <option value="oneway">One Way</option>
+            <option value="roundtrip">Round Trip</option>
+            <option value="multicity">Multi City</option>
+          </select>
+        </div>
+      </label>
+
+      <label for="departureDatePicker" id="singleDepartWrap" style="margin: 0;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Departure</span>
+        <div class="date-field-wrap" style="position:relative; display:block; background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass); cursor: pointer;">
+          <span aria-hidden="true" style="margin-right: 6px;">📅</span>
+          <input type="text" id="departureDateDisplay" class="date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" style="display: inline; width: calc(100% - 2rem); border: none; background: transparent; color: var(--text-main); font-size: 0.95rem; padding: 0; outline: none; cursor: pointer;" />
+          <input type="date" id="departureDatePicker" class="native-date-picker" title="Select departure date" aria-label="Select departure date" />
+        </div>
+        <input type="hidden" name="departure_date" id="departureDate" />
+      </label>
+
+      <label id="returnDateWrap" style="display:none; margin: 0;" for="returnDatePicker">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Return</span>
+        <div class="date-field-wrap" style="position:relative; display:block; background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass); cursor: pointer;">
+          <span aria-hidden="true" style="margin-right: 6px;">📅</span>
+          <input type="text" id="returnDateDisplay" class="date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" style="display: inline; width: calc(100% - 2rem); border: none; background: transparent; color: var(--text-main); font-size: 0.95rem; padding: 0; outline: none; cursor: pointer;" />
+          <input type="date" id="returnDatePicker" class="native-date-picker" title="Select return date" aria-label="Select return date" />
+        </div>
+        <input type="hidden" name="return_date" id="returnDate" />
+      </label>
+    </div>
+
+    <!-- Multi-city leg builder (hidden unless multicity selected) -->
+    <div id="multicityBuilder" style="display:none;">
+      <div class="leg-builder" id="legsContainer">
+        <!-- JavaScript will populate legs here -->
+      </div>
+      <div class="leg-builder-actions" style="display:flex; gap: .5rem; margin-top: .75rem; justify-content:flex-end">
+        <button type="button" id="addLegBtn" class="btn add-leg-btn">+ Add Leg</button>
+        <div style="align-self:center; color:var(--text-muted); font-size:0.95rem;">Min 2, max 5 legs</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Passengers (combined dropdown) → Cabin Class → Search -->
+    <div class="search-secondary-grid" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end;">
+      <!-- Passenger Counter Dropdown -->
+      <label style="margin: 0; position: relative;" id="passengerWrap">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Passengers</span>
+        <div style="background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-glass);" id="passengerToggle">
+          <span>👤</span>
+          <span id="passengerSummary" style="flex: 1; color: var(--text-main); font-size: 0.95rem;">1 Adult</span>
+          <span style="color: var(--color-primary); font-size: 0.75rem;">▼</span>
+        </div>
+        <!-- Hidden inputs for form submission -->
+        <input type="hidden" name="adults" id="adultCount" value="1" />
+        <input type="hidden" name="children" id="childCount" value="0" />
+        <input type="hidden" name="infants" id="infantCount" value="0" />
+        
+        <!-- Dropdown Panel -->
+        <div id="passengerDropdown" style="
+          display: none;
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          right: 0;
+          background: #fff;
+          border: 1px solid var(--border-glass);
+          border-radius: 10px;
+          padding: 1rem;
+          z-index: 9999;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.12);
+          min-width: 280px;
+        ">
+          <!-- Adults -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-glass);">
+            <div>
+              <div style="color: var(--text-main); font-weight: 600; font-size: 0.9rem;">Adults</div>
+              <div style="color: var(--color-primary); font-size: 0.72rem;">12+ years</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button type="button" class="pax-btn pax-minus" data-target="adultCount" data-min="1" data-max="9" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">−</button>
+              <span id="adultCountDisplay" style="color: var(--text-main); font-weight: 700; min-width: 20px; text-align: center; font-size: 1rem;">1</span>
+              <button type="button" class="pax-btn pax-plus" data-target="adultCount" data-min="1" data-max="9" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">+</button>
+            </div>
+          </div>
+          <!-- Children -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px solid var(--border-glass);">
+            <div>
+              <div style="color: var(--text-main); font-weight: 600; font-size: 0.9rem;">Children</div>
+              <div style="color: var(--color-primary); font-size: 0.72rem;">2 – 11 years</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button type="button" class="pax-btn pax-minus" data-target="childCount" data-min="0" data-max="9" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">−</button>
+              <span id="childCountDisplay" style="color: var(--text-main); font-weight: 700; min-width: 20px; text-align: center; font-size: 1rem;">0</span>
+              <button type="button" class="pax-btn pax-plus" data-target="childCount" data-min="0" data-max="9" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">+</button>
+            </div>
+          </div>
+          <!-- Infants -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0;">
+            <div>
+              <div style="color: var(--text-main); font-weight: 600; font-size: 0.9rem;">Infants</div>
+              <div style="color: var(--color-primary); font-size: 0.72rem;">Under 2 years</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button type="button" class="pax-btn pax-minus" data-target="infantCount" data-min="0" data-max="4" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">−</button>
+              <span id="infantCountDisplay" style="color: var(--text-main); font-weight: 700; min-width: 20px; text-align: center; font-size: 1rem;">0</span>
+              <button type="button" class="pax-btn pax-plus" data-target="infantCount" data-min="0" data-max="4" style="
+                width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border-glass-focus); background: #fff; color: var(--color-primary); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+              ">+</button>
+            </div>
+          </div>
+          <div style="margin-top: 0.75rem; text-align: right;">
+            <button type="button" class="btn" onclick="document.getElementById('passengerDropdown').style.display='none'" style="font-size: 0.8rem; padding: 0.4rem 1rem;">Done</button>
+          </div>
+        </div>
+      </label>
+
+      <label for="cabinClass" style="margin: 0;">
+        <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.3rem; display: block;">Cabin Class</span>
+        <div style="background: #fff; border: 1px solid var(--border-glass); border-radius: 8px; padding: 0.55rem 0.75rem; box-shadow: var(--shadow-glass);">
+          <select name="cabin_class" id="cabinClass" style="background: transparent; border: none; color: var(--text-main); width: 100%; font-size: 0.95rem; padding: 0; outline: none; cursor: pointer;">
+            <option value="economy">Economy</option>
+            <option value="premium_economy">Premium Economy</option>
+            <option value="business">Business</option>
+            <option value="first">First Class</option>
+          </select>
+        </div>
+      </label>
+
+      <div class="search-submit-wrap" style="display: flex; justify-content: flex-end;">
+        <button type="submit" class="btn" id="searchBtn" style="font-size: 1.05rem; padding: 0.65rem 2rem; white-space: nowrap;">
+          <span id="searchBtnText">✈️ Search Flights</span>
+          <span id="searchBtnSpinner" style="display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite;"></span>
+        </button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<!-- Trust Indicators -->
+<div class="trust-strip">
+  <div class="trust-item">
+    <div class="trust-item-icon">🔒</div>
+    <span>Secure Booking</span>
+  </div>
+  <div class="trust-item">
+    <div class="trust-item-icon">⚡</div>
+    <span>Instant Confirmation</span>
+  </div>
+  <div class="trust-item">
+    <div class="trust-item-icon">💰</div>
+    <span>Best Prices</span>
+  </div>
+  <div class="trust-item">
+    <div class="trust-item-icon">🌍</div>
+    <span>Worldwide Coverage</span>
+  </div>
+</div>
+
+<!-- Features Section -->
+<section class="features-section">
+  <h2>Why Choose SkyLink?</h2>
+  <p class="section-subtitle">Everything you need for seamless flight booking, all in one platform.</p>
+  
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon blue">🛫</div>
+      <h3>Live Inventory Access</h3>
+      <p>Connect directly to airline GDS and NDC sources including Amadeus, Verteil, and Brightsun for real-time availability.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon cyan">💳</div>
+      <h3>Instant Payments</h3>
+      <p>Secure checkout with Paystack integration. Pay in your local currency and receive instant ticket confirmation.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon green">📊</div>
+      <h3>B2B Wholesale Rates</h3>
+      <p>Access exclusive partner-only pricing with transparent markups. Maximize your margins on every booking.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Popular Destinations -->
+<section class="destinations-section">
+  <h2>Popular Destinations</h2>
+  <p class="section-subtitle">Explore trending routes loved by travelers worldwide.</p>
+  
+  <div class="destinations-grid">
+    <div class="destination-card">
+      <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=75" alt="London" loading="lazy" />
+      <div class="destination-overlay">
+        <span class="destination-code">LHR</span>
+        <span class="destination-name">London, United Kingdom</span>
+        <span class="destination-price">From ₦450,000</span>
+      </div>
+    </div>
+    <div class="destination-card">
+      <img src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=600&q=75" alt="Dubai" loading="lazy" />
+      <div class="destination-overlay">
+        <span class="destination-code">DXB</span>
+        <span class="destination-name">Dubai, UAE</span>
+        <span class="destination-price">From ₦380,000</span>
+      </div>
+    </div>
+    <div class="destination-card">
+      <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=600&q=75" alt="Paris" loading="lazy" />
+      <div class="destination-overlay">
+        <span class="destination-code">CDG</span>
+        <span class="destination-name">Paris, France</span>
+        <span class="destination-price">From ₦420,000</span>
+      </div>
+    </div>
+    <div class="destination-card">
+      <img src="https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&q=75" alt="Tokyo" loading="lazy" />
+      <div class="destination-overlay">
+        <span class="destination-code">NRT</span>
+        <span class="destination-name">Tokyo, Japan</span>
+        <span class="destination-price">From ₦580,000</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Premium Aircraft Gallery Section -->
+<section class="aircraft-gallery-section">
+  <h2>Experience Premium Flight Options</h2>
+  <p class="section-subtitle">Book a wide range of aircraft types for your perfect journey.</p>
+  
+  <div class="aircraft-grid">
+    <div class="aircraft-card">
+      <img src="https://images.pexels.com/photos/46148/aircraft-jet-landing-cloud-46148.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Aircraft Landing" loading="lazy" />
+      <div class="aircraft-overlay">
+        <h3>Premium Airlines</h3>
+        <p>Fly with the world's top-rated airlines for ultimate comfort</p>
+      </div>
+    </div>
+    <div class="aircraft-card">
+      <img src="https://images.pexels.com/photos/1309644/pexels-photo-1309644.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Airplane Wing View" loading="lazy" />
+      <div class="aircraft-overlay">
+        <h3>Window Seat Views</h3>
+        <p>Capture breathtaking aerial views on every flight</p>
+      </div>
+    </div>
+    <div class="aircraft-card">
+      <img src="https://images.pexels.com/photos/2026324/pexels-photo-2026324.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Aircraft in Flight" loading="lazy" />
+      <div class="aircraft-overlay">
+        <h3>Modern Fleet</h3>
+        <p>Latest generation aircraft with cutting-edge technology</p>
+      </div>
+    </div>
+    <div class="aircraft-card">
+      <img src="https://images.pexels.com/photos/723240/pexels-photo-723240.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Airplane at Airport" loading="lazy" />
+      <div class="aircraft-overlay">
+        <h3>Global Network</h3>
+        <p>Connect to over 5000+ routes across continents</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trusted Airlines Strip -->
+<section class="airline-strip">
+  <div class="airline-strip-label">Trusted by major airlines worldwide</div>
+  <div class="airline-logos">
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/EK.png" alt="Emirates" />
+      <span class="airline-logo-name">Emirates</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/BA.png" alt="British Airways" />
+      <span class="airline-logo-name">British Airways</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/ET.png" alt="Ethiopian Airlines" />
+      <span class="airline-logo-name">Ethiopian</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/QR.png" alt="Qatar Airways" />
+      <span class="airline-logo-name">Qatar Airways</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/TK.png" alt="Turkish Airlines" />
+      <span class="airline-logo-name">Turkish Airlines</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/SA.png" alt="South African Airways" />
+      <span class="airline-logo-name">South African</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/KQ.png" alt="Kenya Airways" />
+      <span class="airline-logo-name">Kenya Airways</span>
+    </div>
+    <div class="airline-logo-item">
+      <img class="airline-logo-img-strip" src="https://pics.avs.io/200/80/LH.png" alt="Lufthansa" />
+      <span class="airline-logo-name">Lufthansa</span>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tripType = document.getElementById('tripType');
+    const returnWrap = document.getElementById('returnDateWrap');
+    const returnInput = document.getElementById('returnDate');
+    const returnDisplayInput = document.getElementById('returnDateDisplay');
+    const returnPickerInput = document.getElementById('returnDatePicker');
+    const departureInput = document.getElementById('departureDate');
+    const departureDisplayInput = document.getElementById('departureDateDisplay');
+    const departurePickerInput = document.getElementById('departureDatePicker');
+    const form = document.getElementById('searchForm');
+    const addLegBtn = document.getElementById('addLegBtn');
+    const legsContainer = document.getElementById('legsContainer');
+    const multicityBuilder = document.getElementById('multicityBuilder');
+    const singleFrom = document.getElementById('singleFromWrap');
+    const singleTo = document.getElementById('singleToWrap');
+    const singleDepart = document.getElementById('singleDepartWrap');
+    const swapBtn = document.getElementById('swapBtn');
+
+    // Date helpers: visible format is dd-mm-yyyy, submitted/API format is yyyy-mm-dd.
+    const today = new Date().toISOString().split('T')[0];
+
+    function isoToDisplay(iso) {
+      if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+      const [yyyy, mm, dd] = iso.split('-');
+      return `${dd}-${mm}-${yyyy}`;
+    }
+
+    function displayToIso(display) {
+      const match = String(display || '').trim().match(/^(\d{2})-(\d{2})-(\d{4})$/);
+      if (!match) return '';
+      const [, dd, mm, yyyy] = match;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function isValidIsoDate(iso) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+      const [yyyy, mm, dd] = iso.split('-').map(Number);
+      const date = new Date(Date.UTC(yyyy, mm - 1, dd));
+      return date.getUTCFullYear() === yyyy && date.getUTCMonth() === mm - 1 && date.getUTCDate() === dd;
+    }
+
+    function openNativeDatePicker(pickerInput) {
+      if (!pickerInput) return;
+      if (typeof pickerInput.showPicker === 'function') {
+        try {
+          pickerInput.showPicker();
+          return;
+        } catch (error) {
+          // Some browsers only allow showPicker during direct user interaction.
+        }
+      }
+      pickerInput.focus();
+      pickerInput.click();
+    }
+
+    function wireDateInput(displayInput, hiddenInput, pickerInput = null) {
+      if (!displayInput || !hiddenInput) return;
+      displayInput.addEventListener('input', () => {
+        // Auto-insert hyphens as the user types digits: dd-mm-yyyy.
+        const digits = displayInput.value.replace(/\D/g, '').slice(0, 8);
+        let formatted = digits;
+        if (digits.length > 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+        else if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
+        displayInput.value = formatted;
+        hiddenInput.value = displayToIso(formatted);
+        if (pickerInput && isValidIsoDate(hiddenInput.value)) pickerInput.value = hiddenInput.value;
+      });
+      if (pickerInput) {
+        pickerInput.min = today;
+        const dateField = displayInput.closest('.date-field-wrap') || displayInput.parentElement;
+        if (dateField) {
+          dateField.addEventListener('click', () => {
+            openNativeDatePicker(pickerInput);
+          });
+        }
+        pickerInput.addEventListener('change', () => {
+          hiddenInput.value = pickerInput.value;
+          displayInput.value = isoToDisplay(pickerInput.value);
+        });
+      }
+    }
+
+    wireDateInput(departureDisplayInput, departureInput, departurePickerInput);
+    wireDateInput(returnDisplayInput, returnInput, returnPickerInput);
+
+    const toggleReturnField = () => {
+      if (tripType.value === 'roundtrip') {
+        returnWrap.style.display = 'block';
+        returnDisplayInput.required = true;
+        multicityBuilder.style.display = 'none';
+        singleFrom.style.display = 'block';
+        singleTo.style.display = 'block';
+        singleDepart.style.display = 'block';
+      } else if (tripType.value === 'multicity') {
+        // show multicity builder
+        multicityBuilder.style.display = 'block';
+        singleFrom.style.display = 'none';
+        singleTo.style.display = 'none';
+        singleDepart.style.display = 'none';
+        returnWrap.style.display = 'none';
+        returnDisplayInput.required = false;
+        ensureMinLegs();
+      } else {
+        returnWrap.style.display = 'none';
+        returnDisplayInput.required = false;
+        multicityBuilder.style.display = 'none';
+        singleFrom.style.display = 'block';
+        singleTo.style.display = 'block';
+        singleDepart.style.display = 'block';
+      }
+    };
+
+    // Swap origin/destination for single-leg
+    swapBtn.addEventListener('click', () => {
+      const from = document.getElementById('fromCode');
+      const to = document.getElementById('toCode');
+      const tmp = from.value;
+      from.value = to.value;
+      to.value = tmp;
+    });
+
+    tripType.addEventListener('change', toggleReturnField);
+    toggleReturnField(); // Initial state
+
+    // Multi-city leg functions
+    function createLeg(index, fromVal = '', toVal = '', dateVal = '') {
+      const displayDateVal = isoToDisplay(dateVal);
+      const div = document.createElement('div');
+      div.className = 'leg-row';
+      div.dataset.index = index;
+      div.innerHTML = `
+        <div class="leg-index">Leg ${index + 1}</div>
+        <input name="leg_from" class="leg-input" placeholder="From (IATA)" maxlength="3" value="${fromVal}" />
+        <input name="leg_to" class="leg-input" placeholder="To (IATA)" maxlength="3" value="${toVal}" />
+        <div class="date-field-wrap" style="position:relative; display:block; min-width:0;">
+          <input type="text" class="leg-input leg-date-display date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" value="${displayDateVal}" style="width:100%; padding-right:3rem;" />
+          <span aria-hidden="true" style="position:absolute; right:0.9rem; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-muted);">📅</span>
+          <input type="date" class="leg-date-picker" title="Select leg date" aria-label="Select leg date" value="${dateVal}" min="${today}" style="position:absolute; right:0; top:0; width:3rem; height:100%; opacity:0; cursor:pointer;" />
+        </div>
+        <input name="leg_date" type="hidden" class="leg-date-hidden" value="${dateVal}" />
+        <button type="button" class="btn btn-secondary removeLeg" title="Delete this leg" aria-label="Delete leg">🗑️</button>
+      `;
+      wireDateInput(div.querySelector('.leg-date-display'), div.querySelector('.leg-date-hidden'), div.querySelector('.leg-date-picker'));
+      return div;
+    }
+
+    function rebuildLegs() {
+      // rename inputs to arrays expected by Flask: leg_from, leg_to, leg_date
+      const rows = legsContainer.querySelectorAll('.leg-row');
+      rows.forEach((r, idx) => {
+        r.dataset.index = idx;
+        const label = r.querySelector('.leg-index');
+        if (label) label.textContent = `Leg ${idx + 1}`;
+        // ensure input names are arrays
+        const fromInput = r.querySelector('input[name="leg_from"], .leg-input:nth-of-type(1)');
+        const toInput = r.querySelector('input[name="leg_to"], .leg-input:nth-of-type(2)');
+        const hiddenDate = r.querySelector('.leg-date-hidden');
+        if (fromInput) fromInput.setAttribute('name', 'leg_from');
+        if (toInput) toInput.setAttribute('name', 'leg_to');
+        if (hiddenDate) hiddenDate.setAttribute('name', 'leg_date');
+      });
+    }
+
+    function ensureMinLegs() {
+      const rows = legsContainer.querySelectorAll('.leg-row');
+      if (rows.length < 2) {
+        // add until 2
+        while (legsContainer.querySelectorAll('.leg-row').length < 2) {
+          legsContainer.appendChild(createLeg(legsContainer.children.length));
+        }
+      }
+      rebuildLegs();
+    }
+
+    addLegBtn && addLegBtn.addEventListener('click', () => {
+      const count = legsContainer.querySelectorAll('.leg-row').length;
+      if (count >= 5) return alert('Maximum 5 legs allowed.');
+      legsContainer.appendChild(createLeg(count));
+      rebuildLegs();
+    });
+
+    // Delegate remove buttons
+    legsContainer.addEventListener('click', (e) => {
+      if (e.target.classList.contains('removeLeg')) {
+        const row = e.target.closest('.leg-row');
+        if (!row) return;
+        row.remove();
+        const remaining = legsContainer.querySelectorAll('.leg-row').length;
+        if (remaining < 2) ensureMinLegs();
+        rebuildLegs();
+      }
+    });
+
+    // Initial ensure
+    ensureMinLegs();
+
+    // Form validation + loading state
+    form.addEventListener('submit', (e) => {
+      const adults = Number(form.adults.value) || 0;
+      const infants = Number(form.infants.value) || 0;
+      if (adults < 1) {
+        e.preventDefault();
+        alert('You must have at least 1 adult passenger.');
+        return;
+      }
+      if (infants > adults) {
+        e.preventDefault();
+        alert('The number of infant passengers cannot exceed the number of adult passengers.');
+        return;
+      }
+
+      const departureIso = departureInput.value;
+      if (tripType.value !== 'multicity' && (!isValidIsoDate(departureIso) || departureIso < today)) {
+        e.preventDefault();
+        alert('Please enter a valid departure date in dd-mm-yyyy format. The date cannot be in the past.');
+        departureDisplayInput.focus();
+        return;
+      }
+
+      const returnIso = returnInput.value;
+      if (tripType.value === 'roundtrip' && (!isValidIsoDate(returnIso) || returnIso < departureIso)) {
+        e.preventDefault();
+        alert('Please enter a valid return date in dd-mm-yyyy format. The return date must be on or after the departure date.');
+        returnDisplayInput.focus();
+        return;
+      }
+
+      if (tripType.value === 'multicity') {
+        const rows = legsContainer.querySelectorAll('.leg-row');
+        if (rows.length < 2) {
+          e.preventDefault();
+          alert('Multi-city requires at least 2 legs.');
+          return;
+        }
+        // Validate codes and dates
+        for (let i = 0; i < rows.length; i++) {
+          const f = rows[i].querySelector('input[name="leg_from"]').value.trim();
+          const t = rows[i].querySelector('input[name="leg_to"]').value.trim();
+          const dateDisplay = rows[i].querySelector('.leg-date-display');
+          const d = rows[i].querySelector('.leg-date-hidden').value;
+          if (!f || !t || !d) {
+            e.preventDefault();
+            alert(`Please complete Leg ${i+1}. Use dd-mm-yyyy for the date.`);
+            if (!d && dateDisplay) dateDisplay.focus();
+            return;
+          }
+          if (!isValidIsoDate(d) || d < today) {
+            e.preventDefault();
+            alert(`Leg ${i+1}: please enter a valid date in dd-mm-yyyy format. The date cannot be in the past.`);
+            if (dateDisplay) dateDisplay.focus();
+            return;
+          }
+          if (f.length !== 3 || t.length !== 3) {
+            e.preventDefault();
+            alert(`Leg ${i+1}: airport codes must be 3 letters.`);
+            return;
+          }
+          if (f.toUpperCase() === t.toUpperCase()) {
+            e.preventDefault();
+            alert(`Leg ${i+1}: origin and destination cannot match.`);
+            return;
+          }
+        }
+      }
+      // Show loading overlay and button spinner on valid submit
+      if (!e.defaultPrevented) {
+        const overlay = document.getElementById('searchLoadingOverlay');
+        const btnText = document.getElementById('searchBtnText');
+        const btnSpinner = document.getElementById('searchBtnSpinner');
+        if (overlay) overlay.classList.add('active');
+        if (btnText) btnText.textContent = 'Searching...';
+        if (btnSpinner) btnSpinner.style.display = 'inline-block';
+        document.getElementById('searchBtn').disabled = true;
+      }
+    });
+    // ── Passenger Counter Dropdown ─────────────────────────────────────
+    const passengerToggle = document.getElementById('passengerToggle');
+    const passengerDropdown = document.getElementById('passengerDropdown');
+    const passengerSummary = document.getElementById('passengerSummary');
+    const adultDisplay = document.getElementById('adultCountDisplay');
+    const childDisplay = document.getElementById('childCountDisplay');
+    const infantDisplay = document.getElementById('infantCountDisplay');
+    const adultHidden = document.getElementById('adultCount');
+    const childHidden = document.getElementById('childCount');
+    const infantHidden = document.getElementById('infantCount');
+
+    function updatePassengerSummary() {
+      const a = parseInt(adultHidden.value) || 0;
+      const c = parseInt(childHidden.value) || 0;
+      const i = parseInt(infantHidden.value) || 0;
+      const parts = [];
+      if (a > 0) parts.push(`${a} Adult${a > 1 ? 's' : ''}`);
+      if (c > 0) parts.push(`${c} Child${c > 1 ? 'ren' : ''}`);
+      if (i > 0) parts.push(`${i} Infant${i > 1 ? 's' : ''}`);
+      passengerSummary.textContent = parts.join(', ') || '1 Adult';
+      
+      // Disable minus button when at min
+      document.querySelectorAll('.pax-minus').forEach(btn => {
+        const target = btn.dataset.target;
+        const hidden = document.getElementById(target);
+        const min = parseInt(btn.dataset.min);
+        btn.style.opacity = parseInt(hidden.value) <= min ? '0.3' : '1';
+        btn.style.pointerEvents = parseInt(hidden.value) <= min ? 'none' : 'auto';
+      });
+      // Disable plus button when at max
+      document.querySelectorAll('.pax-plus').forEach(btn => {
+        const target = btn.dataset.target;
+        const hidden = document.getElementById(target);
+        const max = parseInt(btn.dataset.max);
+        btn.style.opacity = parseInt(hidden.value) >= max ? '0.3' : '1';
+        btn.style.pointerEvents = parseInt(hidden.value) >= max ? 'none' : 'auto';
+      });
+    }
+
+    // Toggle dropdown
+    passengerToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = passengerDropdown.style.display === 'block';
+      passengerDropdown.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) updatePassengerSummary();
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!passengerDropdown.contains(e.target) && e.target !== passengerToggle && !passengerToggle.contains(e.target)) {
+        passengerDropdown.style.display = 'none';
+      }
+    });
+
+    // Handle + / - buttons
+    document.querySelectorAll('.pax-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const target = btn.dataset.target;
+        const hidden = document.getElementById(target);
+        const display = document.getElementById(target + 'Display');
+        const min = parseInt(btn.dataset.min);
+        const max = parseInt(btn.dataset.max);
+        let val = parseInt(hidden.value) || 0;
+        
+        if (btn.classList.contains('pax-plus') && val < max) val++;
+        else if (btn.classList.contains('pax-minus') && val > min) val--;
+        
+        // Infants cannot exceed adults
+        if (target === 'infantCount' && val > parseInt(adultHidden.value)) {
+          val = parseInt(adultHidden.value);
+        }
+        
+        hidden.value = val;
+        if (display) display.textContent = val;
+        updatePassengerSummary();
+      });
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    passengerDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Hover effects for buttons
+    document.querySelectorAll('.pax-btn').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = 'var(--color-primary-glow)';
+        btn.style.color = 'var(--color-primary)';
+        btn.style.borderColor = 'var(--color-primary)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = '#fff';
+        btn.style.color = 'var(--color-primary)';
+        btn.style.borderColor = 'var(--border-glass-focus)';
+      });
+    });
+
+    // Initialize passenger summary
+    updatePassengerSummary();
+  });
+</script>
+
+<!-- Airport Autocomplete -->
+<script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+{% endblock %}

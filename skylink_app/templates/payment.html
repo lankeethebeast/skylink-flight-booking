@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Complete Payment · SkyLink{% endblock %}
+{% block content %}
+
+{% set rdata = reserve.get('data', {}) if reserve.get('data') is defined else reserve %}
+{% set invoice_id = invoice_id or rdata.get('invoice_id') %}
+{% set payment_url = payment_url or rdata.get('payment_url') %}
+{% set amount = rdata.get('amount') or 'N/A' %}
+{% set currency = rdata.get('currency') or 'NGN' %}
+
+<section class="card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
+  <!-- Payment Visual -->
+  <div class="payment-visual" style="margin-bottom: 1.5rem;">
+    <img src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=70" alt="Secure Payment" style="width: 100%; max-width: 450px; border-radius: 14px;" />
+  </div>
+
+  <!-- Security Badge -->
+  <div style="display: flex; justify-content: center;">
+    <div class="security-badge">🔒 256-bit SSL Encrypted</div>
+  </div>
+  
+  <h2 style="border: none;">Complete Your Booking</h2>
+  <p class="muted">Your seat is reserved. Please complete payment to issue your ticket.</p>
+  
+  <div style="background: rgba(15, 23, 42, 0.4); padding: 1.5rem; border-radius: 14px; border: 1px solid var(--border-glass); margin: 1.5rem 0; text-align: left; display: flex; flex-direction: column; gap: 0.8rem; position: relative; overflow: hidden;">
+    <div style="position: absolute; top: 0; left: 0; bottom: 0; width: 4px; background: linear-gradient(180deg, var(--color-primary), var(--color-accent)); border-radius: 4px 0 0 4px;"></div>
+    <div style="display: flex; justify-content: space-between;">
+      <span class="receipt-label">Invoice ID</span>
+      <strong style="color: #fff; font-family: var(--font-secondary);">{{ invoice_id|display_invoice_id }}</strong>
+    </div>
+    <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem;">
+      <span class="receipt-label">Total Amount</span>
+      <strong style="color: #60a5fa; font-size: 1.4rem;">
+        {{ currency }} {{ "{:,.2f}".format(amount|float) if amount != 'N/A' else 'N/A' }}
+      </strong>
+    </div>
+  </div>
+
+  <!-- Trust Indicators -->
+  <div style="display: flex; justify-content: center; gap: 1.5rem; margin: 1.5rem 0; flex-wrap: wrap;">
+    <div class="trust-item" style="font-size: 0.8rem; gap: 0.4rem;">
+      <span style="color: var(--state-success);">✓</span> Secure Checkout
+    </div>
+    <div class="trust-item" style="font-size: 0.8rem; gap: 0.4rem;">
+      <span style="color: var(--state-success);">✓</span> Paystack Verified
+    </div>
+    <div class="trust-item" style="font-size: 0.8rem; gap: 0.4rem;">
+      <span style="color: var(--state-success);">✓</span> Instant Confirmation
+    </div>
+  </div>
+
+  <div style="margin: 2rem 0;">
+    <a class="btn" target="_blank" href="{{ payment_url }}" id="payNow" style="font-size: 1.1rem; padding: 1rem 2.2rem; width: 100%;">
+      💳 Pay Now (Paystack)
+    </a>
+  </div>
+  
+  <div class="spinner-wrapper" id="pollingContainer" style="display: none;">
+    <div class="spinner"></div>
+    <div class="pulse-timer" id="pollingTimer">Waiting for payment confirmation: 0s</div>
+    <p id="statusMsg" class="muted" style="margin-top: 0.5rem;">
+      Awaiting payment callback. Please complete payment in the new window.
+    </p>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const invoiceId = "{{ invoice_id }}";
+  const payBtn = document.getElementById('payNow');
+  const pollingContainer = document.getElementById('pollingContainer');
+  const timerLabel = document.getElementById('pollingTimer');
+  const statusMsg = document.getElementById('statusMsg');
+  
+  let pollingInterval = null;
+  let timerInterval = null;
+  let startedAt = null;
+  
+  const startPolling = () => {
+    // Show spinner container
+    pollingContainer.style.display = 'flex';
+    startedAt = Date.now();
+    
+    // Disable pay button to prevent multiple tabs
+    payBtn.innerHTML = '⚡ Checkout Opened';
+    payBtn.style.opacity = '0.7';
+    
+    // Dynamic timer ticker
+    timerInterval = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
+      timerLabel.innerText = `Waiting for payment confirmation: ${elapsedSec}s`;
+    }, 1000);
+    
+    // Active polling call every 7 seconds
+    pollingInterval = setInterval(async () => {
+      const elapsedMs = Date.now() - startedAt;
+      
+      // 5-minute timeout limit
+      if (elapsedMs > 300000) {
+        clearInterval(pollingInterval);
+        clearInterval(timerInterval);
+        timerLabel.style.display = 'none';
+        pollingContainer.querySelector('.spinner').style.display = 'none';
+        statusMsg.innerHTML = '<span style="color: var(--state-error);">⏳ Polling timed out.</span> We didn\'t receive payment confirmation within 5 minutes. Please contact support or search again.';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/status?invoice_id=${invoiceId}`);
+        const data = await response.json();
+        
+        if (data.has_pnr) {
+          clearInterval(pollingInterval);
+          clearInterval(timerInterval);
+          statusMsg.innerHTML = '<span style="color: var(--state-success);">✓ Payment confirmed! Generating ticket...</span>';
+          setTimeout(() => {
+            window.location = '{{ url_for("confirmation") }}';
+          }, 1500);
+          return;
+        }
+        
+        if (data.booking_status === 'error' || data.error) {
+          clearInterval(pollingInterval);
+          clearInterval(timerInterval);
+          timerLabel.style.display = 'none';
+          pollingContainer.querySelector('.spinner').style.display = 'none';
+          statusMsg.innerHTML = `<span style="color: var(--state-error);">⚠️ Booking Error:</span> ${data.message || data.error || 'Failed to issue booking.'}`;
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 7000);
+  };
+  
+  // Start polling upon clicking Pay Now
+  payBtn.addEventListener('click', () => {
+    // If polling has not started yet
+    if (!pollingInterval) {
+      setTimeout(startPolling, 1000);
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Payment Processing · SkyLink{% endblock %}
+{% block content %}
+
+<section class="card" style="max-width: 700px; margin: 2rem auto; text-align: center;" id="processingSection">
+  <div class="spinner" style="border-width: 3px; margin: 2rem auto;"></div>
+  <h2>Processing Your Payment...</h2>
+  <p class="muted">Please wait while we verify your payment. Do not close this page.</p>
+  <p class="muted" style="font-size: 0.8rem; margin-top: 0.5rem;" id="statusText">Verifying transaction...</p>
+</section>
+
+<script>
+  let retryCount = 0;
+  const maxRetries = 3;
+
+  async function verifyPayment() {
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference');
+    
+    if (!reference) {
+      showResult('error', 'No payment reference found.', 'This may happen if you navigated here directly. Please go back to your booking confirmation.');
+      return;
+    }
+
+    document.getElementById('statusText').textContent = `Verifying transaction (attempt ${retryCount + 1})...`;
+
+    try {
+      const res = await fetch(`/payment/paystack/verify?reference=${encodeURIComponent(reference)}`);
+      const data = await res.json();
+      
+      if (data.status) {
+        // Payment successful
+        showResult('success', 'Payment Confirmed! ✅', 
+          `Reference: ${reference}\nAmount: ₦${data.amount ? (data.amount / 100).toLocaleString() : 'N/A'}\n\nRedirecting to your booking confirmation...`);
+        
+        setTimeout(() => {
+          window.location.href = '/confirm';
+        }, 3000);
+      } else {
+        // Payment failed
+        if (retryCount < maxRetries) {
+          retryCount++;
+          document.getElementById('statusText').textContent = `Verification failed. Retrying in 3 seconds... (attempt ${retryCount}/${maxRetries})`;
+          setTimeout(verifyPayment, 3000);
+        } else {
+          showResult('error', '❌ Payment Verification Failed', 
+            data.message || 'We could not verify your payment. Your payment may still be processing.',
+            '/confirm', 'Back to Booking');
+        }
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      if (retryCount < maxRetries) {
+        retryCount++;
+        document.getElementById('statusText').textContent = `Network error. Retrying in 5 seconds... (attempt ${retryCount}/${maxRetries})`;
+        setTimeout(verifyPayment, 5000);
+      } else {
+        showResult('error', '⚠️ Connection Error', 
+          'Unable to verify payment. Please check your email for a payment confirmation from Paystack, or contact support.',
+          '/confirm', 'Back to Booking');
+      }
+    }
+  }
+
+  function showResult(type, title, message, linkHref, linkText) {
+    const section = document.getElementById('processingSection');
+    const icon = type === 'success' ? '✅' : '⚠️';
+    const color = type === 'success' ? 'var(--state-success)' : 'var(--state-error)';
+    const bgColor = type === 'success' 
+      ? 'linear-gradient(135deg, #059669, #10b981)' 
+      : 'linear-gradient(135deg, #dc2626, #ef4444)';
+    
+    section.innerHTML = `
+      <div style="background: ${bgColor}; color: #fff; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
+        <span style="font-size: 2rem;">${icon}</span>
+        <h2 style="color: #fff; margin: 0.5rem 0 0 0;">${title}</h2>
+      </div>
+      <p style="margin: 1rem 0; white-space: pre-line; line-height: 1.6;">${message}</p>
+      <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+        <a href="${linkHref || '/confirm'}" class="btn">${linkText || '← Back to Booking'}</a>
+        <a href="/" class="btn btn-secondary">Book Another Flight</a>
+      </div>
+    `;
+  }
+
+  document.addEventListener('DOMContentLoaded', verifyPayment);
+</script>
+
+{% endblock %}

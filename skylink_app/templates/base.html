@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Book affordable premium flights instantly with SkyLink's live inventory pricing system." />
+  <title>{% block title %}SkyLink — Book Premium Flights Instantly{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+</head>
+<body>
+  <!-- Decorative background glows -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="{{ url_for('index') }}" class="logo" id="siteLogo">
+        <span class="logo-icon">✈</span> SkyLink
+      </a>
+      <div class="logo-sub">SkyLink Partner Portal</div>
+    </div>
+  </header>
+  
+  <main class="container page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-message" data-type="{{ category }}" style="display:none;">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="{{ url_for('index') }}" class="logo">
+            <span class="logo-icon">✈</span> SkyLink
+          </a>
+          <p>Your trusted partner for premium flight bookings. Access live inventory from major airlines worldwide with instant confirmation and competitive B2B pricing.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Quick Links</h4>
+          <ul>
+            <li><a href="{{ url_for('index') }}">Search Flights</a></li>
+            <li><a href="{{ url_for('index') }}">Book Now</a></li>
+            <li><a href="#">Manage Booking</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Airlines</h4>
+          <ul>
+            <li><a href="#">Emirates</a></li>
+            <li><a href="#">British Airways</a></li>
+            <li><a href="#">Ethiopian Airlines</a></li>
+            <li><a href="#">Qatar Airways</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <ul>
+            <li><a href="#">Help Center</a></li>
+            <li><a href="#">Contact Us</a></li>
+            <li><a href="#">Terms of Service</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 SkyLink. All rights reserved. Powered by live supplier-direct inventories.</span>
+        <div class="footer-social">
+          <a href="#" title="Twitter">𝕏</a>
+          <a href="#" title="Facebook">f</a>
+          <a href="#" title="Instagram">📷</a>
+          <a href="#" title="LinkedIn">in</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification System -->
+  <script src="{{ url_for('static', filename='toast.js') }}"></script>
+</body>
+</html>

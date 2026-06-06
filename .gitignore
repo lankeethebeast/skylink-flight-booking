@@ -1,0 +1,45 @@
+# Environment & secrets
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Database files
+*.db
+*.sqlite3
+
+# Flask session files
+skylink_app/flask_session/
+
+# Log files
+*.log
+
+# OS files
+desktop.ini
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PDF docs (local reference only)
+*.pdf
+
+# Test files
+test_*.py
+validate_*.py

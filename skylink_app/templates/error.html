@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Error · SkyLink{% endblock %}
+{% block content %}
+<section class="card" style="max-width: 720px; margin: 3rem auto; text-align: center;">
+  <div class="error-visual" style="margin-bottom: 1.5rem; position: relative;">
+    <img src="https://images.unsplash.com/photo-1436491865332-7a61a109db05?w=400&q=70" alt="Error" style="width: 100%; max-width: 380px; border-radius: 14px; opacity: 0.4;" />
+    <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
+      <span class="error-plane-icon" style="font-size: 4rem;">⚠️</span>
+    </div>
+  </div>
+  <h2 style="border: none;">Something Went Wrong</h2>
+  <p class="muted" style="margin-bottom: 2rem;">
+    We encountered an unexpected error processing your request. Please try again or contact support if the issue persists.
+  </p>
+
+  {% if show_debug %}
+    <details style="text-align: left; background: #0d1117; color: #e6edf3; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; border: 1px solid #30363d;">
+      <summary style="cursor: pointer; font-weight: 600; color: #f39c12; margin-bottom: 0.5rem;">
+        🔧 Debug details (development mode)
+      </summary>
+      <div style="font-size: 0.85rem; line-height: 1.5;">
+        <p style="margin: 0.5rem 0;">
+          <strong style="color: #f85149;">Error type:</strong>
+          <code style="color: #ffa657;">{{ error_type or "Unknown" }}</code>
+        </p>
+        <p style="margin: 0.5rem 0;">
+          <strong style="color: #f85149;">Request:</strong>
+          <code style="color: #ffa657;">{{ request_method }} {{ request_path }}</code>
+        </p>
+        {% if error_message %}
+          <p style="margin: 0.5rem 0;">
+            <strong style="color: #f85149;">Message:</strong>
+            <code style="color: #ffa657; word-break: break-word;">{{ error_message }}</code>
+          </p>
+        {% endif %}
+        {% if error_traceback %}
+          <p style="margin: 0.75rem 0 0.25rem;"><strong style="color: #f85149;">Traceback:</strong></p>
+          <pre style="background: #161b22; padding: 0.75rem; border-radius: 6px; overflow-x: auto; font-size: 0.75rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: #c9d1d9;">{{ error_traceback }}</pre>
+        {% endif %}
+      </div>
+    </details>
+  {% endif %}
+
+  <a href="{{ url_for('index') }}" class="btn" id="errorSearchAgain" style="font-size: 1.05rem;">✈ Return to Search</a>
+</section>
+{% endblock %}

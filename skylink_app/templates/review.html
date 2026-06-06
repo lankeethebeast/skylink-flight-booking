@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}Passenger Details · SkyLink{% endblock %}
+{% block content %}
+
+{% set pdata = pricing.get('data', {}) if pricing.get('data') is defined else pricing %}
+{% set adults = search_params.adults|int %}
+{% set children = search_params.children|int %}
+{% set infants = search_params.infants|int %}
+{% set currency = pdata.get('currency') or search_params.currency or 'NGN' %}
+{% set price = pdata.get('verified_price') or pdata.get('original_price') or 'N/A' %}
+
+<!-- Flight Summary Card -->
+<section class="card">
+  <h2>Flight Summary</h2>
+  
+  <div class="flight-summary-header">
+    <div class="flight-summary-title">
+      <div class="flight-summary-route">
+        <span>✈</span> {{ search_params.from_code }} ➔ {{ search_params.to_code }}
+      </div>
+      <div class="flight-summary-price">
+        {{ currency }} {{ "{:,.2f}".format(price|float) if price != 'N/A' else 'N/A' }}
+      </div>
+    </div>
+    
+    <div class="flight-summary-details">
+      <div class="flight-summary-detail-item">
+        📅 <strong>Departure Date:</strong> {{ search_params.departure_date|display_date }}
+      </div>
+      {% if search_params.return_date %}
+      <div class="flight-summary-detail-item">
+        📅 <strong>Return Date:</strong> {{ search_params.return_date|display_date }}
+      </div>
+      {% endif %}
+      {% set class_letter = pdata.get('class_letter') or pdata.get('booking_class') or pdata.get('class_code') or pdata.get('fare_class') or '' %}
+      {% if not class_letter %}
+        {% set cabin_lower = (search_params.cabin_class or '')|lower %}
+        {% if cabin_lower == 'economy' %}{% set class_letter = 'Y' %}
+        {% elif cabin_lower == 'premium_economy' %}{% set class_letter = 'W' %}
+        {% elif cabin_lower == 'business' %}{% set class_letter = 'J' %}
+        {% elif cabin_lower == 'first' %}{% set class_letter = 'F' %}
+        {% endif %}
+      {% endif %}
+      <div class="flight-summary-detail-item">
+        💺 <strong>Class:</strong> <span style="text-transform: capitalize;">{{ search_params.cabin_class }} <span style="color: var(--color-accent); font-weight: 600;">[{{ class_letter }}]</span></span>
+      </div>
+      <div class="flight-summary-detail-item">
+        👤 <strong>Passengers:</strong> {{ adults }} Adult(s){% if children > 0 %}, {{ children }} Child(ren){% endif %}{% if infants > 0 %}, {{ infants }} Infant(s){% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Passenger Form -->
+  <h3>👤 Passenger Details</h3>
+  <p class="muted">Enter passenger details exactly as they appear on travel documents.</p>
+  
+  <form action="{{ url_for('reserve') }}" method="post" id="passengerForm">
+    {% for i in range(adults) %}
+    <div class="grid-form passenger-fields" style="margin-top: 1rem;">
+      <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-accent)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.85rem;">{{ i + 1 }}</div>
+        <strong style="color: #fff;">Adult {{ i + 1 }}</strong>
+        <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(148,163,184,0.08); padding: 0.15rem 0.5rem; border-radius: 6px;">Passenger {{ i + 1 }} of {{ adults + children }}</span>
+      </div>
+      
+      <label>
+        Title
+        <select name="adult_{{ i }}_title" required>
+          <option value="">Select Title</option>
+          <option value="Mr">Mr</option>
+          <option value="Mrs">Mrs</option>
+          <option value="Ms">Ms</option>
+          <option value="Dr">Dr</option>
+        </select>
+      </label>
+      <label>
+        First Name
+        <input type="text" name="adult_{{ i }}_first_name" placeholder="e.g. John" required pattern="[A-Za-z\s\-']+" title="Only letters, spaces, hyphens, and apostrophes" />
+      </label>
+      <label>
+        Last Name
+        <input type="text" name="adult_{{ i }}_last_name" placeholder="e.g. Doe" required pattern="[A-Za-z\s\-']+" title="Only letters, spaces, hyphens, and apostrophes" />
+      </label>
+      <label>
+        Other Name <span style="font-size: 0.75rem; color: var(--text-muted);">(optional)</span>
+        <input type="text" name="adult_{{ i }}_other_name" placeholder="e.g. Middle name (optional)" pattern="[A-Za-z\s\-']*" title="Only letters, spaces, hyphens, and apostrophes" />
+      </label>
+      <label>
+        Date of Birth
+        <input type="date" name="adult_{{ i }}_dob" required />
+      </label>
+      <label>
+        Gender
+        <select name="adult_{{ i }}_gender" required>
+          <option value="">Select Gender</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </label>
+      <label>
+        Email
+        <input type="email" name="adult_{{ i }}_email" placeholder="e.g. john@example.com" required />
+      </label>
+      <label>
+        Phone
+        <input type="tel" name="adult_{{ i }}_phone" placeholder="e.g. +234 801 234 5678" required />
+      </label>
+      <label>
+        Country Code
+        <select name="adult_{{ i }}_country_code" required>
+          <option value="234" selected>NG (+234) Nigeria</option>
+          <option value="1">US (+1) United States</option>
+          <option value="44">GB (+44) United Kingdom</option>
+          <option value="1">CA (+1) Canada</option>
+          <option value="61">AU (+61) Australia</option>
+          <option value="49">DE (+49) Germany</option>
+          <option value="33">FR (+33) France</option>
+          <option value="39">IT (+39) Italy</option>
+          <option value="34">ES (+34) Spain</option>
+          <option value="31">NL (+31) Netherlands</option>
+          <option value="41">CH (+41) Switzerland</option>
+          <option value="46">SE (+46) Sweden</option>
+          <option value="47">NO (+47) Norway</option>
+          <option value="45">DK (+45) Denmark</option>
+          <option value="81">JP (+81) Japan</option>
+          <option value="86">CN (+86) China</option>
+          <option value="91">IN (+91) India</option>
+          <option value="65">SG (+65) Singapore</option>
+          <option value="971">AE (+971) United Arab Emirates</option>
+          <option value="966">SA (+966) Saudi Arabia</option>
+          <option value="27">ZA (+27) South Africa</option>
+          <option value="20">EG (+20) Egypt</option>
+          <option value="254">KE (+254) Kenya</option>
+          <option value="233">GH (+233) Ghana</option>
+          <option value="1">BM (+1) Bermuda</option>
+          <option value="52">MX (+52) Mexico</option>
+          <option value="55">BR (+55) Brazil</option>
+        </select>
+      </label>
+      <label>
+        Nationality
+        <select name="adult_{{ i }}_nationality" required>
+          <option value="NG" selected>Nigeria</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="CA">Canada</option>
+          <option value="AU">Australia</option>
+          <option value="DE">Germany</option>
+          <option value="FR">France</option>
+          <option value="IT">Italy</option>
+          <option value="ES">Spain</option>
+          <option value="NL">Netherlands</option>
+          <option value="CH">Switzerland</option>
+          <option value="SE">Sweden</option>
+          <option value="NO">Norway</option>
+          <option value="DK">Denmark</option>
+          <option value="JP">Japan</option>
+          <option value="CN">China</option>
+          <option value="IN">India</option>
+          <option value="SG">Singapore</option>
+          <option value="AE">United Arab Emirates</option>
+          <option value="SA">Saudi Arabia</option>
+          <option value="ZA">South Africa</option>
+          <option value="EG">Egypt</option>
+          <option value="KE">Kenya</option>
+          <option value="GH">Ghana</option>
+          <option value="BM">Bermuda</option>
+          <option value="MX">Mexico</option>
+          <option value="BR">Brazil</option>
+        </select>
+      </label>
+    </div>
+    {% endfor %}
+
+    {% for i in range(children) %}
+    <div class="grid-form passenger-fields" style="margin-top: 1rem;">
+      <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #06b6d4); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.85rem;">{{ adults + i + 1 }}</div>
+        <strong style="color: #fff;">Child {{ i + 1 }}</strong>
+        <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(148,163,184,0.08); padding: 0.15rem 0.5rem; border-radius: 6px;">Passenger {{ adults + i + 1 }} of {{ adults + children }}</span>
+      </div>
+      
+      <label>
+        First Name
+        <input type="text" name="child_{{ i }}_first_name" placeholder="e.g. Jamie" required pattern="[A-Za-z\s\-']+" />
+      </label>
+      <label>
+        Last Name
+        <input type="text" name="child_{{ i }}_last_name" placeholder="e.g. Doe" required pattern="[A-Za-z\s\-']+" />
+      </label>
+      <label>
+        Other Name <span style="font-size: 0.75rem; color: var(--text-muted);">(optional)</span>
+        <input type="text" name="child_{{ i }}_other_name" placeholder="e.g. Middle name (optional)" pattern="[A-Za-z\s\-']*" />
+      </label>
+      <label>
+        Date of Birth
+        <input type="date" name="child_{{ i }}_dob" required />
+      </label>
+      <label>
+        Gender
+        <select name="child_{{ i }}_gender" required>
+          <option value="">Select Gender</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+        </select>
+      </label>
+    </div>
+    {% endfor %}
+
+    {% if infants > 0 %}
+    <h3 style="margin-top: 2rem;">👶 Infant{{ 's' if infants > 1 else '' }}</h3>
+    {% for i in range(infants) %}
+    <div class="grid-form passenger-fields" style="margin-top: 1rem;">
+      <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem;">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #f97316); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 0.85rem;">👶</div>
+        <strong style="color: #fff;">Infant {{ i + 1 }}</strong>
+        <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(148,163,184,0.08); padding: 0.15rem 0.5rem; border-radius: 6px;">Lap child</span>
+      </div>
+      
+      <label>
+        First Name
+        <input type="text" name="infant_{{ i }}_first_name" placeholder="e.g. Baby" required />
+      </label>
+      <label>
+        Last Name
+        <input type="text" name="infant_{{ i }}_last_name" placeholder="e.g. Doe" required />
+      </label>
+      <label>
+        Date of Birth
+        <input type="date" name="infant_{{ i }}_dob" required />
+      </label>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; gap: 1rem; flex-wrap: wrap;">
+      <a href="{{ url_for('index') }}" class="btn btn-secondary" style="padding: 0.9rem 1.8rem;">&#8592; Back to Search</a>
+      <button type="submit" class="btn" style="padding: 0.9rem 2.5rem; font-size: 1.05rem;">
+        💳 Proceed to Payment
+      </button>
+    </div>
+  </form>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('passengerForm');
+    
+    form.addEventListener('submit', (e) => {
+      // Validate all required name fields using the new indexed names
+      const namePatterns = [
+        'input[name^="adult_"][name$="_first_name"]',
+        'input[name^="adult_"][name$="_last_name"]',
+        'input[name^="child_"][name$="_first_name"]',
+        'input[name^="child_"][name$="_last_name"]',
+        'input[name^="infant_"][name$="_first_name"]',
+        'input[name^="infant_"][name$="_last_name"]'
+      ];
+      
+      for (const selector of namePatterns) {
+        const inputs = form.querySelectorAll(selector);
+        for (const input of inputs) {
+          if (input.value.trim() === '') {
+            e.preventDefault();
+            input.focus();
+            input.style.borderColor = 'var(--state-error)';
+            alert('Please fill in all required passenger names.');
+            return;
+          }
+        }
+      }
+    });
+  });
+</script>
+{% endblock %}

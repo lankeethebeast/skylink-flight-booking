@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Booking Confirmed · SkyLink{% endblock %}
+{% block content %}
+
+<section class="card" style="max-width: 700px; margin: 2rem auto;">
+  <!-- Celebration Header -->
+  <div class="celebration-wrapper">
+    {% if pnr_data %}
+    <div style="position: relative; margin-bottom: 1rem;">
+      <img src="https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=70" alt="Booking Confirmed" style="width: 100%; max-width: 500px; border-radius: 14px; opacity: 0.85;" />
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
+        <span class="celebration-icon">🎉</span>
+      </div>
+    </div>
+    {% else %}
+    <div style="position: relative; margin-bottom: 1rem;">
+      <img src="https://images.unsplash.com/photo-1436491865332-7a61a109db05?w=600&q=70" alt="Booking in Progress" style="width: 100%; max-width: 500px; border-radius: 14px; opacity: 0.6;" />
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
+        <div class="spinner" style="border-width: 3px;"></div>
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Confetti particles -->
+    {% if pnr_data %}
+    <div class="confetti-particle" style="left: 10%; background: #3b82f6; animation-delay: 0s;"></div>
+    <div class="confetti-particle" style="left: 25%; background: #06b6d4; animation-delay: 0.5s;"></div>
+    <div class="confetti-particle" style="left: 40%; background: #10b981; animation-delay: 1s;"></div>
+    <div class="confetti-particle" style="left: 55%; background: #f59e0b; animation-delay: 0.3s;"></div>
+    <div class="confetti-particle" style="left: 70%; background: #ef4444; animation-delay: 0.8s;"></div>
+    <div class="confetti-particle" style="left: 85%; background: #8b5cf6; animation-delay: 1.2s;"></div>
+    {% endif %}
+  </div>
+
+  <!-- Payment Status Banner -->
+  {% if payment_status == 'paid' %}
+  <div style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.5rem;">✅</span>
+    <div>
+      <strong style="font-size: 1.05rem;">Payment Confirmed</strong>
+      <p style="margin: 0.2rem 0 0 0; opacity: 0.9; font-size: 0.85rem;">Your payment has been successfully processed via Paystack.</p>
+    </div>
+  </div>
+  {% elif payment_status == 'failed' %}
+  <div style="background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; padding: 1rem 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.5rem;">❌</span>
+    <div>
+      <strong style="font-size: 1.05rem;">Payment Failed</strong>
+      <p style="margin: 0.2rem 0 0 0; opacity: 0.9; font-size: 0.85rem;">Your payment could not be processed. Please try again.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <h2 id="confirmTitle" style="border: none; text-align: center;">{% if pnr_data %}🎉 Booking Confirmed{% else %}⏳ Booking in Progress{% endif %}</h2>
+  <p class="muted" id="confirmSubtitle" style="text-align: center;">{% if pnr_data %}Your flight has been successfully booked. Save or print this confirmation for your records.{% else %}We are finalizing your booking and waiting for your PNR. This page will auto-refresh status.{% endif %}</p>
+
+  <div class="pnr-block">
+    <div class="pnr-label">Your Booking Reference (PNR)</div>
+    <div class="pnr" id="pnrValue">{{ pnr_data.pnr if pnr_data else 'Pending' }}</div>
+  </div>
+
+  <div class="receipt-grid">
+    <div class="receipt-item">
+      <span class="receipt-label">Invoice ID</span>
+      <span class="receipt-val">{{ display_invoice_id or (invoice_id|display_invoice_id) }}</span>
+    </div>
+    <div class="receipt-item">
+      <span class="receipt-label">Booking Status</span>
+      <span class="receipt-val" style="color: var(--state-success);" id="bookingStatusValue">{{ pnr_data.booking_status or 'Confirmed' if pnr_data else 'Pending' }}</span>
+    </div>
+    <div class="receipt-item">
+      <span class="receipt-label">Payment Status</span>
+      <span class="receipt-val" id="paymentStatusValue" style="color: {% if payment_status == 'paid' or (pnr_data and pnr_data.payment_status == 'paid') %}var(--state-success){% else %}#f59e0b{% endif %};">
+        {% if payment_status == 'paid' %}Paid ✅{% elif pnr_data and pnr_data.payment_status == 'paid' %}Paid ✅{% else %}Pending{% endif %}
+      </span>
+    </div>
+    {% if pnr_data and pnr_data.get('passenger_name') %}
+    <div class="receipt-item">
+      <span class="receipt-label">Passenger</span>
+      <span class="receipt-val">{{ pnr_data.passenger_name }}</span>
+    </div>
+    {% endif %}
+    {% if pnr_data and pnr_data.get('route') %}
+    <div class="receipt-item">
+      <span class="receipt-label">Route</span>
+      <span class="receipt-val">{{ pnr_data.route }}</span>
+    </div>
+    {% endif %}
+    {% if pnr_data and pnr_data.get('flight_date') %}
+    <div class="receipt-item">
+      <span class="receipt-label">Flight Date</span>
+      <span class="receipt-val">{{ pnr_data.flight_date }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2.5rem; flex-wrap: wrap;">
+    {% if not pnr_data %}
+      {% if payment_url %}
+      <a href="{{ payment_url }}" target="_blank" class="btn" id="testPaymentBtn">💳 Complete Test Payment</a>
+      {% endif %}
+      {% if payment_status != 'paid' %}
+        {% if paystack_public_key and paystack_public_key != '' and not paystack_public_key.startswith('pk_test_YOUR') %}
+          <button class="btn" onclick="payWithPaystack()" id="paystackBtn" style="background: linear-gradient(135deg, #059669, #10b981);">💳 Pay with Paystack</button>
+        {% else %}
+          <button class="btn" onclick="alert('Paystack is not configured. Please contact support.')" id="paystackBtn" style="opacity: 0.6;">💳 Pay with Paystack (Not Configured)</button>
+        {% endif %}
+      {% else %}
+        <span style="color: var(--state-success); font-weight: 600;">✅ Payment Complete</span>
+      {% endif %}
+    {% endif %}
+    <button class="btn" onclick="window.print()" id="printBtn">🖨️ Print / Download</button>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary" id="searchAgainBtn">✈ Book Another Flight</a>
+  </div>
+
+  <!-- Paystack Payment Modal -->
+  <div id="paystackModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 400px; width: 90%;">
+      <h3>💳 Paystack Payment</h3>
+      <form id="paystackForm" onsubmit="initializePaystackPayment(event)">
+        <div style="margin-bottom: 1rem;">
+          <label>Email Address</label>
+          <input type="email" id="paystackEmail" name="email" placeholder="your@email.com" required style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 6px;">
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button type="button" class="btn btn-secondary" onclick="closePaystackModal()" style="flex: 1;">Cancel</button>
+          <button type="submit" class="btn" style="flex: 1;">Proceed to Payment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+{% if show_debug_panel %}
+<section class="card" style="max-width: 900px; margin: 1rem auto;">
+  <h3 style="margin-bottom: .75rem;">Debug (Test Mode)</h3>
+  <p class="muted" style="margin-bottom: .75rem;">Use this to compare reserve/status responses with Postman.</p>
+  <details open>
+    <summary><strong>Reserve Response</strong></summary>
+    <pre style="white-space: pre-wrap; word-break: break-word; font-size: .8rem;">{{ reserve_response|tojson(indent=2) }}</pre>
+  </details>
+  <details style="margin-top: .75rem;" open>
+    <summary><strong>Latest Status Response</strong></summary>
+    <pre style="white-space: pre-wrap; word-break: break-word; font-size: .8rem;">{{ latest_status_response|tojson(indent=2) }}</pre>
+  </details>
+</section>
+{% endif %}
+
+{% if not pnr_data and invoice_id %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const invoiceId = "{{ invoice_id }}";
+    const paymentStatus = "{{ payment_status or '' }}";
+    const pnrEl = document.getElementById('pnrValue');
+    const bookingStatusEl = document.getElementById('bookingStatusValue');
+    const paymentStatusEl = document.getElementById('paymentStatusValue');
+    const titleEl = document.getElementById('confirmTitle');
+    const subtitleEl = document.getElementById('confirmSubtitle');
+
+    const startedAt = Date.now();
+    // If payment is already done, poll longer since PNR generation may take time
+    const timeoutMs = paymentStatus === 'paid' ? 10 * 60 * 1000 : 5 * 60 * 1000;
+    // Poll faster right after payment to catch PNR generation quickly
+    let pollInterval = paymentStatus === 'paid' ? 3000 : 7000;
+
+    const poll = async () => {
+      if (Date.now() - startedAt > timeoutMs) {
+        subtitleEl.textContent = paymentStatus === 'paid' 
+          ? 'Payment confirmed. PNR generation is taking longer than expected. Please check back later or contact support.'
+          : 'PNR is still pending. PNR is issued after payment success or admin bypass on the provider side.';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/status?invoice_id=${encodeURIComponent(invoiceId)}`);
+        const data = await res.json();
+
+        if (data.booking_status) bookingStatusEl.textContent = data.booking_status;
+        if (data.payment_status) {
+          paymentStatusEl.textContent = data.payment_status === 'paid' ? 'Paid ✅' : data.payment_status;
+          paymentStatusEl.style.color = data.payment_status === 'paid' ? 'var(--state-success)' : '#f59e0b';
+        }
+
+        if (data.has_pnr && data.pnr) {
+          pnrEl.textContent = data.pnr;
+          titleEl.textContent = '🎉 Booking Confirmed';
+          subtitleEl.textContent = 'Your PNR is ready. Save or print this confirmation for your records.';
+          // Slow down polling once we have the PNR
+          return;
+        }
+
+        if (paymentStatus === 'paid' || data.payment_status === 'paid') {
+          subtitleEl.textContent = 'Payment confirmed ✅ — Generating your PNR... This usually takes a few moments.';
+        } else {
+          subtitleEl.textContent = 'Waiting for PNR... Please complete payment to generate your booking reference.';
+        }
+        
+        // Gradually slow down polling
+        pollInterval = Math.min(pollInterval + 1000, 15000);
+        setTimeout(poll, pollInterval);
+      } catch (e) {
+        setTimeout(poll, Math.min(pollInterval * 2, 20000));
+      }
+    };
+
+    poll();
+  });
+</script>
+{% endif %}
+
+<!-- Paystack Integration Script -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+  function payWithPaystack() {
+    document.getElementById('paystackModal').style.display = 'flex';
+  }
+
+  function closePaystackModal() {
+    document.getElementById('paystackModal').style.display = 'none';
+  }
+
+  async function initializePaystackPayment(e) {
+    e.preventDefault();
+    const email = document.getElementById('paystackEmail').value;
+    
+    try {
+      const formData = new FormData();
+      formData.append('email', email);
+      
+      const res = await fetch('/payment/paystack', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await res.json();
+      
+      if (data.status && data.authorization_url) {
+        // Redirect to Paystack checkout
+        window.location.href = data.authorization_url;
+      } else {
+        alert('Payment initialization failed: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Payment error: ' + error.message);
+    }
+  }
+
+  // Auto-fill email from form if available
+  window.addEventListener('DOMContentLoaded', () => {
+    const emailInput = document.getElementById('paystackEmail');
+    if (emailInput && !emailInput.value) {
+      const formEmail = document.querySelector('input[name="email"]');
+      if (formEmail) {
+        emailInput.value = formEmail.value;
+      }
+    }
+  });
+
+  // Close modal when clicking outside
+  document.getElementById('paystackModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'paystackModal') {
+      closePaystackModal();
+    }
+  });
+</script>
+
+{% endblock %}

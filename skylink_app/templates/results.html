@@ -1,0 +1,701 @@
+{% extends "base.html" %}
+{% block title %}Flight Search Results · SkyLink{% endblock %}
+{% block content %}
+{% set is_roundtrip = (search_params.flight_type == 'roundtrip') %}
+{% set has_return_leg = is_roundtrip and search_params.return_date %}
+{% set is_multicity_search = is_multicity or search_params.flight_type == 'multicity' %}
+
+<!-- Results Header Banner -->
+<section style="text-align: center; margin-bottom: 1.5rem; padding: 2rem 1rem; background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(6,182,212,0.05)); border-radius: 16px; border: 1px solid var(--border-glass); position: relative; overflow: hidden;">
+  <img src="https://images.unsplash.com/photo-1436491865332-7a61a109db05?w=400&q=60" alt="" style="position: absolute; top: 0; right: 0; bottom: 0; width: 300px; object-fit: cover; opacity: 0.1; border-radius: 0 16px 16px 0;" />
+  <div style="position: relative; z-index: 1;">
+    <h2 style="border: none; padding: 0; margin-bottom: 0.5rem; font-size: 1.5rem;">🔍 Flight Results</h2>
+    <p class="muted" style="margin: 0;">
+      Found <strong style="color: var(--color-accent);">{{ flights|length }}</strong> flights from <strong>{{ search_params.from_code }}</strong> to <strong>{{ search_params.to_code }}</strong>
+    </p>
+  </div>
+</section>
+
+<!-- Filter / Sort Toolbar -->
+<div class="filter-toolbar" id="filterToolbar">
+  <span class="filter-toolbar-label">Filter</span>
+
+  <div class="filter-group">
+    <select class="filter-select" id="sortBy" title="Sort flights by">
+      <option value="price-asc">Price: Low → High</option>
+      <option value="price-desc">Price: High → Low</option>
+      <option value="duration">Duration: Shortest</option>
+      <option value="departure">Departure: Earliest</option>
+      <option value="arrival">Arrival: Earliest</option>
+      <option value="airline">Airline: A → Z</option>
+    </select>
+  </div>
+
+  <div class="filter-group">
+    <input type="text" class="filter-search-input" id="airlineFilter" placeholder="Airline name..." />
+  </div>
+
+  <div class="filter-btn-group" id="stopFilter">
+    <button class="filter-chip active" data-stops="all">All</button>
+    <button class="filter-chip" data-stops="0">Direct</button>
+    <button class="filter-chip" data-stops="1">1 Stop</button>
+    <button class="filter-chip" data-stops="2">2+ Stops</button>
+  </div>
+
+  <span class="filter-results-count" id="resultsCount">Showing <strong id="visibleCount">0</strong> of <strong id="totalCount">{{ flights|length }}</strong> flights</span>
+</div>
+
+  {% if is_multicity and leg_results %}
+    <div class="multicity-tabs">
+      {% for leg in leg_results %}
+        <section class="card" style="margin-bottom:1rem;">
+          <h3>Leg {{ loop.index }} — {{ leg.from_code }} ➔ {{ leg.to_code }} · {{ leg.departure_date|display_date }}</h3>
+          {% if leg.flights %}
+            <div class="list">
+              {% for f in leg.flights %}
+                {% set seg = (((f.segments or [])[0] or [])[0] if f.segments else {}) %}
+                {% set airline_name = f.airline_name or seg.airline_name or f.airline or seg.airline or 'Airline' %}
+                {% set flight_no = f.flight_no or seg.flight_no or 'N/A' %}
+                {% set airline_iata = f.airline if f.airline and f.airline|length >= 2 and f.airline|length <= 3 and f.airline.isalpha() else (seg.airline if seg.airline and seg.airline|length >= 2 and seg.airline|length <= 3 and seg.airline.isalpha() else (flight_no[:2] if flight_no and flight_no|length > 2 else '')) %}
+                {% set dep_time = f.departure_time or seg.departure_time or '--:--' %}
+                {% set arr_time = f.arrival_time or seg.arrival_time or '--:--' %}
+                {% set duration = f._computed_duration or f.duration_time or seg.total_duration or seg.duration_time or '--' %}
+                {% set cabin = f.class or seg.class or search_params.cabin_class %}
+                {% set baggage = f.baggage or seg.baggage or 'N/A' %}
+                {% set num_stops = f.stops if f.stops is defined else (f.number_of_stops if f.number_of_stops is defined else (f.stop_count if f.stop_count is defined else ((f.segments[0]|length - 1) if f.segments and f.segments[0] and f.segments[0]|length > 1 else 0))) %}
+                {% set stops_label = 'DIRECT' if not num_stops or num_stops|int <= 0 else (num_stops|string + ' STOP' + ('S' if num_stops|int > 1 else '')) %}
+                {% set class_letter = f.class_letter if f.class_letter is defined else (seg.class_letter if seg.class_letter is defined else (f.booking_class if f.booking_class is defined else '')) %}
+
+                <article class="flight">
+                  <div class="ticket-main">
+                    <div class="ticket-header">
+                      <div class="airline-badge">
+                        <img class="airline-logo-img" data-iata="{{ airline_iata }}" alt="{{ airline_name }}" />
+                        <span class="airline-emoji-fallback">✈</span> {{ airline_name }}
+                      </div>
+                      <div style="display:flex; align-items:center; gap:0.6rem;">
+                        <span class="ticket-flight-number">{{ flight_no }}</span>
+                        <span class="cabin-tag">{{ cabin }}{% if class_letter %} <span class="class-letter">{{ class_letter }}</span>{% endif %}</span>
+                      </div>
+                    </div>
+
+                    <div class="ticket-route">
+                      <div class="ticket-airport-block">
+                        <span class="ticket-airport-code">{{ leg.from_code }}</span>
+                        <span class="ticket-airport-time">{{ dep_time }}</span>
+                        <span class="ticket-airport-date">{{ leg.departure_date|display_date }}</span>
+                        <span class="ticket-airport-name">Departure</span>
+                      </div>
+
+                      <div class="ticket-flight-path">
+                        <span class="ticket-duration">{{ duration }}</span>
+                        <div class="ticket-path-line">
+                          <span class="plane-icon">✈</span>
+                        </div>
+                        <span class="stops-badge {% if not num_stops or num_stops|int <= 0 %}direct{% elif num_stops|int == 1 %}has-stops{% else %}multi-stop{% endif %}">{{ stops_label }}</span>
+                      </div>
+
+                      <div class="ticket-airport-block">
+                        <span class="ticket-airport-code">{{ leg.to_code }}</span>
+                        <span class="ticket-airport-time">{{ arr_time }}</span>
+                        <span class="ticket-airport-date">{{ leg.departure_date|display_date }}</span>
+                        <span class="ticket-airport-name">Arrival</span>
+                      </div>
+                    </div>
+
+                    <div class="ticket-info">
+                      <span class="baggage-allowance">🧳 Baggage: {{ baggage }}</span>
+                      <div style="display:flex; gap:1rem; align-items:center;">
+                        <button class="flight-details-toggle" onclick="toggleDetails(this)">
+                          <span>Flight Details</span>
+                          <span class="arrow">▾</span>
+                        </button>
+                        <button class="fare-rules-toggle" onclick="toggleFareRules(this)">
+                          <span>Fare Rules</span>
+                          <span class="arrow">▾</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {% set fare_segs = f.segments[0] if f.segments and f.segments[0] else [] %}
+                    {% set fare_seg = fare_segs[0] if fare_segs else {} %}
+                    {% set is_refundable = fare_seg.get('refundable', 0) if fare_seg else 0 %}
+                    <div class="fare-rules-panel">
+                      <div class="fare-rules-inner">
+                        <div class="fare-rule-section">
+                          <strong>💰 Cancellation</strong>
+                          <p>{% if is_refundable %}Refundable — cancellation fees may apply{% else %}Non-refundable{% endif %}</p>
+                        </div>
+                        <div class="fare-rule-section">
+                          <strong>🔄 Changes</strong>
+                          <p>{% if is_refundable %}Date changes permitted subject to availability and fare difference{% else %}Date changes subject to availability and fees{% endif %}</p>
+                        </div>
+                        <div class="fare-rule-section">
+                          <strong>🎫 Fare Basis</strong>
+                          <p>{{ fare_seg.get('class', cabin) or cabin }}{% if fare_seg.get('class_letter') %} ({{ fare_seg.class_letter }}){% endif %}</p>
+                        </div>
+                        <div class="fare-rule-section">
+                          <strong>🧳 Checked Baggage</strong>
+                          <p>{{ fare_seg.get('baggage', baggage) or baggage }}</p>
+                        </div>
+                        {% if fare_seg.get('cabin_baggage') %}
+                        <div class="fare-rule-section">
+                          <strong>🎒 Cabin Baggage</strong>
+                          <p>{{ fare_seg.cabin_baggage }}</p>
+                        </div>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="flight-details-panel">
+                      <div class="flight-details-inner">
+                        {% set segments = f.segments[0] if f.segments and f.segments[0] else [] %}
+                        {% set seg_count = segments|length %}
+                        {% for seg in segments %}
+                          {% set seg_airline = seg.airline_name or seg.airline or airline_name %}
+                          {% set seg_flight = seg.flight_no or seg.flight_number or '' %}
+                          {% set seg_dep = seg.departure_time or seg.dep_time or '--:--' %}
+                          {% set seg_arr = seg.arrival_time or seg.arr_time or '--:--' %}
+                          {% set seg_from = seg.from or seg.departure_airport or seg.origin or '' %}
+                          {% set seg_to = seg.to or seg.arrival_airport or seg.destination or '' %}
+                          {% set seg_dur = seg._seg_dur or seg.duration or seg.duration_time or '' %}
+                          {% if seg_count == 1 %}{% set leg_label = '' %}
+                          {% elif loop.first %}{% set leg_label = '✈️ Outbound' %}
+                          {% elif is_roundtrip and loop.last %}{% set leg_label = '🔄 Return' %}
+                          {% else %}{% set leg_label = '🔁 Transit' %}{% endif %}
+                          {% if leg_label %}<div class="flight-detail-section-title">{{ leg_label }}</div>{% endif %}
+                          <div class="flight-detail-leg">
+                            <span class="leg-dot"></span>
+                            <div class="flight-detail-row">
+                              <span class="detail-airline">{{ seg_airline }}</span>
+                              {% if seg_flight %}<span class="detail-flight">{{ seg_flight }}</span>{% endif %}
+                            </div>
+                            <div class="flight-detail-row">
+                              <span class="detail-time">{{ seg_dep }}</span>
+                              <span class="detail-airport">{{ seg_from or leg.from_code or search_params.from_code }}</span>
+                              <span style="color: var(--text-muted); font-size: 0.7rem;">→</span>
+                              <span class="detail-time">{{ seg_arr }}</span>
+                              <span class="detail-airport">{{ seg_to or leg.to_code or search_params.to_code }}</span>
+                              {% if seg_dur %}<span class="detail-duration">{{ seg_dur }}</span>{% endif %}
+                            </div>
+                          </div>
+                          {% if not loop.last %}
+                            {% set layover = (f._layovers or [])[loop.index0] %}
+                            {% set lay_city = (layover and layover.city) or seg_to %}
+                            {% set lay_dur = layover and layover.duration_str %}
+                            <div class="detail-layover">
+                              <span class="detail-layover-icon">⏳</span>
+                              Layover at <strong>{{ lay_city }}</strong>{% if lay_dur %} · <span>{{ lay_dur }}</span>{% endif %}
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="ticket-divider"></div>
+
+                  <div class="ticket-stub">
+                    <span class="ticket-stub-label">Price</span>
+                    <div class="price-wrapper">
+                      <span class="price">{{ f.currency or seg.currency or search_params.currency or 'NGN' }} {{ "{:,.2f}".format(f.price|float) if f.price else (f.amount or 'N/A') }}</span>
+                      <span class="price-per-person">Per Person</span>
+                    </div>
+                    <form action="{{ url_for('multicity_select') }}" method="post" style="width: 100%;">
+                      <input type="hidden" name="booking_token" value="{{ f.booking_token }}" />
+                      <input type="hidden" name="leg_index" value="{{ leg.index }}" />
+                      <button class="btn-select">Select</button>
+                    </form>
+                    <div class="ticket-barcode">
+                      <span></span><span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                  </div>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div style="text-align:center; padding:1rem; color:var(--text-muted)">No flights for this leg.</div>
+          {% endif %}
+        </section>
+      {% endfor %}
+    </div>
+
+  {% elif flights %}
+    <div class="list">
+    {% for f in flights %}
+      {% set seg = (((f.segments or [])[0] or [])[0] if f.segments else {}) %}
+      {% set airline_name = f.airline_name or seg.airline_name or f.airline or seg.airline or 'Airline' %}
+      {% set flight_no = f.flight_no or seg.flight_no or 'N/A' %}
+      {% set airline_iata = f.airline if f.airline and f.airline|length >= 2 and f.airline|length <= 3 and f.airline.isalpha() else (seg.airline if seg.airline and seg.airline|length >= 2 and seg.airline|length <= 3 and seg.airline.isalpha() else (flight_no[:2] if flight_no and flight_no|length > 2 else '')) %}
+      {% set dep_time = f.departure_time or seg.departure_time or '--:--' %}
+      {% set arr_time = f.arrival_time or seg.arrival_time or '--:--' %}
+      {% set duration = f._computed_duration or f.duration_time or seg.total_duration or seg.duration_time or '--' %}
+      {% set cabin = f.class or seg.class or search_params.cabin_class %}
+      {% set baggage = f.baggage or seg.baggage or 'N/A' %}
+      {% set num_stops = f.stops if f.stops is defined else (f.number_of_stops if f.number_of_stops is defined else (f.stop_count if f.stop_count is defined else ((f.segments[0]|length - 1) if f.segments and f.segments[0] and f.segments[0]|length > 1 else 0))) %}
+      {% set stops_label = 'DIRECT' if not num_stops or num_stops|int <= 0 else (num_stops|string + ' STOP' + ('S' if num_stops|int > 1 else '')) %}
+      {% set class_letter = f.class_letter if f.class_letter is defined else (seg.class_letter if seg.class_letter is defined else (f.booking_class if f.booking_class is defined else '')) %}
+
+      <article class="flight">
+        <div class="ticket-main">
+          <div class="ticket-header">
+            <div class="airline-badge">
+              <img class="airline-logo-img" data-iata="{{ airline_iata }}" alt="{{ airline_name }}" />
+              <span class="airline-emoji-fallback">✈</span> {{ airline_name }}
+            </div>
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span class="ticket-flight-number">{{ flight_no }}</span>
+              <span class="cabin-tag">{{ cabin }}{% if class_letter %} <span class="class-letter">{{ class_letter }}</span>{% endif %}</span>
+            </div>
+          </div>
+
+          <div class="ticket-route">
+            <div class="ticket-airport-block">
+              <span class="ticket-airport-code">{{ search_params.from_code }}</span>
+              <span class="ticket-airport-time">{{ dep_time }}</span>
+              <span class="ticket-airport-date">{{ search_params.departure_date|display_date }}</span>
+              <span class="ticket-airport-name">Departure</span>
+            </div>
+
+            <div class="ticket-flight-path">
+              <span class="ticket-duration">{{ duration }}</span>
+              <div class="ticket-path-line">
+                <span class="plane-icon">✈</span>
+              </div>
+              <span class="stops-badge {% if not num_stops or num_stops|int <= 0 %}direct{% elif num_stops|int == 1 %}has-stops{% else %}multi-stop{% endif %}">{{ stops_label }}</span>
+            </div>
+
+            <div class="ticket-airport-block">
+              <span class="ticket-airport-code">{{ search_params.to_code }}</span>
+              <span class="ticket-airport-time">{{ arr_time }}</span>
+              {% set arr_date = seg.get('arrival_date') if seg else none %}
+              <span class="ticket-airport-date">{{ (arr_date or search_params.departure_date)|display_date }}</span>
+              <span class="ticket-airport-name">Arrival</span>
+            </div>
+          </div>
+
+          <div class="ticket-info">
+            <span class="baggage-allowance">🧳 Baggage: {{ baggage }}</span>
+            <div style="display:flex; gap:1rem; align-items:center;">
+              <button class="flight-details-toggle" onclick="toggleDetails(this)">
+                <span>Flight Details</span>
+                <span class="arrow">▾</span>
+              </button>
+              <button class="fare-rules-toggle" onclick="toggleFareRules(this)">
+                <span>Fare Rules</span>
+                <span class="arrow">▾</span>
+              </button>
+            </div>
+          </div>
+
+          {% set fare_segs = f.segments[0] if f.segments and f.segments[0] else [] %}
+          {% set fare_seg = fare_segs[0] if fare_segs else {} %}
+          {% set is_refundable = fare_seg.get('refundable', 0) if fare_seg else 0 %}
+          <div class="fare-rules-panel">
+            <div class="fare-rules-inner">
+              <div class="fare-rule-section">
+                <strong>💰 Cancellation</strong>
+                <p>{% if is_refundable %}Refundable — cancellation fees may apply{% else %}Non-refundable{% endif %}</p>
+              </div>
+              <div class="fare-rule-section">
+                <strong>🔄 Changes</strong>
+                <p>{% if is_refundable %}Date changes permitted subject to availability and fare difference{% else %}Date changes subject to availability and fees{% endif %}</p>
+              </div>
+              <div class="fare-rule-section">
+                <strong>🎫 Fare Basis</strong>
+                <p>{{ fare_seg.get('class', cabin) or cabin }}{% if fare_seg.get('class_letter') %} ({{ fare_seg.class_letter }}){% endif %}</p>
+              </div>
+              <div class="fare-rule-section">
+                <strong>🧳 Checked Baggage</strong>
+                <p>{{ fare_seg.get('baggage', baggage) or baggage }}</p>
+              </div>
+              {% if fare_seg.get('cabin_baggage') %}
+              <div class="fare-rule-section">
+                <strong>🎒 Cabin Baggage</strong>
+                <p>{{ fare_seg.cabin_baggage }}</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="flight-details-panel">
+            <div class="flight-details-inner">
+              {# ── Outbound segments ── #}
+              {% set out_segs = f.segments[0] if f.segments and f.segments[0] else [] %}
+              {% set out_count = out_segs|length %}
+              {% for seg in out_segs %}
+                {% set seg_airline = seg.airline_name or seg.airline or airline_name %}
+                {% set seg_flight = seg.flight_no or seg.flight_number or '' %}
+                {% set seg_dep = seg.departure_time or seg.dep_time or '--:--' %}
+                {% set seg_arr = seg.arrival_time or seg.arr_time or '--:--' %}
+                {% set seg_from = seg.from or seg.departure_airport or seg.origin or '' %}
+                {% set seg_to = seg.to or seg.arrival_airport or seg.destination or '' %}
+                {% set seg_dur = seg._seg_dur or seg.duration or seg.duration_time or '' %}
+                {% if out_count > 1 and loop.first %}<div class="flight-detail-section-title">✈️ Outbound</div>{% endif %}
+                <div class="flight-detail-leg">
+                  <span class="leg-dot"></span>
+                  <div class="flight-detail-row">
+                    <span class="detail-airline">{{ seg_airline }}</span>
+                    {% if seg_flight %}<span class="detail-flight">{{ seg_flight }}</span>{% endif %}
+                  </div>
+                  <div class="flight-detail-row">
+                    <span class="detail-time">{{ seg_dep }}</span>
+                    <span class="detail-airport">{{ seg_from or search_params.from_code }}</span>
+                    <span style="color: var(--text-muted); font-size: 0.7rem;">→</span>
+                    <span class="detail-time">{{ seg_arr }}</span>
+                    <span class="detail-airport">{{ seg_to or search_params.to_code }}</span>
+                    {% if seg_dur %}<span class="detail-duration">{{ seg_dur }}</span>{% endif %}
+                  </div>
+                </div>
+                {% if not loop.last %}
+                  {% set layover = (f._layovers or [])[loop.index0] %}
+                  {% set lay_city = (layover and layover.city) or seg_to %}
+                  {% set lay_dur = layover and layover.duration_str %}
+                  <div class="detail-layover">
+                    <span class="detail-layover-icon">⏳</span>
+                    Layover at <strong>{{ lay_city }}</strong>{% if lay_dur %} · <span>{{ lay_dur }}</span>{% endif %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+
+              {# ── Return segments (roundtrip only) ── #}
+              {% if is_roundtrip and f.segments and f.segments|length > 1 %}
+                {% set ret_segs = f.segments[1] if f.segments[1] else [] %}
+                {% set ret_count = ret_segs|length %}
+                {% if ret_segs %}
+                  <div class="detail-separator"></div>
+                  <div class="flight-detail-section-title">🔄 Return</div>
+                {% endif %}
+                {% for seg in ret_segs %}
+                  {% set seg_airline = seg.airline_name or seg.airline or airline_name %}
+                  {% set seg_flight = seg.flight_no or seg.flight_number or '' %}
+                  {% set seg_dep = seg.departure_time or seg.dep_time or '--:--' %}
+                  {% set seg_arr = seg.arrival_time or seg.arr_time or '--:--' %}
+                  {% set seg_from = seg.from or seg.departure_airport or seg.origin or '' %}
+                  {% set seg_to = seg.to or seg.arrival_airport or seg.destination or '' %}
+                  {% set seg_dur = seg._seg_dur or seg.duration or seg.duration_time or '' %}
+                  <div class="flight-detail-leg">
+                    <span class="leg-dot"></span>
+                    <div class="flight-detail-row">
+                      <span class="detail-airline">{{ seg_airline }}</span>
+                      {% if seg_flight %}<span class="detail-flight">{{ seg_flight }}</span>{% endif %}
+                    </div>
+                    <div class="flight-detail-row">
+                      <span class="detail-time">{{ seg_dep }}</span>
+                      <span class="detail-airport">{{ seg_from or search_params.to_code }}</span>
+                      <span style="color: var(--text-muted); font-size: 0.7rem;">→</span>
+                      <span class="detail-time">{{ seg_arr }}</span>
+                      <span class="detail-airport">{{ seg_to or search_params.from_code }}</span>
+                      {% if seg_dur %}<span class="detail-duration">{{ seg_dur }}</span>{% endif %}
+                    </div>
+                  </div>
+                  {% if not loop.last %}
+                    {% set ret_lo = (f._return_layovers or [])[loop.index0] %}
+                    {% set lay_city = (ret_lo and ret_lo.city) or seg_to %}
+                    {% set lay_dur = ret_lo and ret_lo.duration_str %}
+                    <div class="detail-layover">
+                      <span class="detail-layover-icon">⏳</span>
+                      Layover at <strong>{{ lay_city }}</strong>{% if lay_dur %} · <span>{{ lay_dur }}</span>{% endif %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="ticket-divider"></div>
+
+        <div class="ticket-stub">
+          <span class="ticket-stub-label">Price</span>
+          <div class="price-wrapper">
+            <span class="price">
+              {{ f.currency or seg.currency or search_params.currency or 'NGN' }}
+              {{ "{:,.2f}".format(f.price|float) if f.price else (f.amount or 'N/A') }}
+            </span>
+            <span class="price-per-person">Per Person</span>
+          </div>
+
+          {% if is_multicity %}
+            <form action="{{ url_for('multicity_select') }}" method="post" style="width: 100%;">
+              <input type="hidden" name="booking_token" value="{{ f.booking_token }}" />
+              <input type="hidden" name="leg_index" value="0" />
+              <button class="btn-select">Select</button>
+            </form>
+          {% else %}
+            <form action="{{ url_for('price') }}" method="post" style="width: 100%;">
+              <input type="hidden" name="booking_token" value="{{ f.booking_token }}" />
+              <button class="btn-select">Select</button>
+            </form>
+          {% endif %}
+          
+          <div class="ticket-barcode">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="card" style="text-align: center; padding: 3rem 1rem;">
+      <div style="position: relative; margin-bottom: 1.5rem;">
+        <img src="https://images.unsplash.com/photo-1529074385757-1b797b0a2cf1?w=400&q=70" alt="No flights found" style="width: 100%; max-width: 350px; border-radius: 14px; opacity: 0.85;" />
+      </div>
+      <h3 style="display: block; color: #fff;">No Flights Found</h3>
+      <p class="muted">We couldn't find any flights matching your search criteria. Please try another date or route.</p>
+      <a href="{{ url_for('index') }}" class="btn" style="margin-top: 1.5rem;">🔄 Search Again</a>
+    </div>
+  {% endif %}
+
+<!-- Floating Expiry Warning Banner -->
+<div class="floating-expiry-banner" id="expiryBanner">
+  <div class="expiry-text">
+    <div class="expiry-title">⚠️ Search Expired</div>
+    <div class="expiry-desc">Fares may have changed since your initial search.</div>
+  </div>
+  <form action="{{ url_for('search') }}" method="post" style="margin: 0;">
+    <input type="hidden" name="from_code" value="{{ search_params.from_code }}" />
+    <input type="hidden" name="to_code" value="{{ search_params.to_code }}" />
+    <input type="hidden" name="trip_type" value="{{ search_params.flight_type or 'oneway' }}" />
+    <input type="hidden" name="departure_date" value="{{ search_params.departure_date }}" />
+    <input type="hidden" name="return_date" value="{{ search_params.return_date or '' }}" />
+    <input type="hidden" name="adults" value="{{ search_params.adults }}" />
+    <input type="hidden" name="children" value="{{ search_params.children }}" />
+    <input type="hidden" name="infants" value="{{ search_params.infants }}" />
+    <input type="hidden" name="cabin_class" value="{{ search_params.cabin_class }}" />
+    <button class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Refresh Fares</button>
+  </form>
+</div>
+
+{% if show_debug_panel %}
+<!-- ===== DEBUG PANEL ===== -->
+<section class="card" style="border: 2px dashed #e74c3c; background: #1a1a2e; color: #eee; margin-top: 1.5rem;">
+  <h2 style="color: #e74c3c; margin-bottom: 0.5rem;">🔧 Debug Panel — Supplier / Source Info</h2>
+  <p style="color: #aaa; font-size: 0.85rem; margin-bottom: 1rem;">
+    The SkyLink API is <strong>supplier-agnostic</strong> for <code>api</code> role callers — individual flight results do NOT include a <code>supplier</code> field.
+    However, the response <code>meta</code> and <code>sources</code> arrays (when present) reveal which supplier modules were queried.
+    The three supported suppliers are: <strong>Amadeus</strong>, <strong>Verteil NDC</strong>, and <strong>Brightsun</strong>.
+  </p>
+
+  {% if is_multicity and raw_leg_responses is defined and raw_leg_responses %}
+    {% for raw in raw_leg_responses %}
+      <details style="margin-bottom: 1rem;">
+        <summary style="cursor: pointer; font-weight: bold; color: #f39c12;">
+          Leg {{ loop.index }} — Raw API Response
+        </summary>
+        <pre style="background: #0d1117; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">{{ raw | tojson(indent=2) }}</pre>
+      </details>
+    {% endfor %}
+
+  {% elif raw_search_response is defined and raw_search_response %}
+    <details style="margin-bottom: 1rem;" open>
+      <summary style="cursor: pointer; font-weight: bold; color: #f39c12;">
+        Raw Search API Response
+      </summary>
+      <pre style="background: #0d1117; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.8rem; max-height: 500px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">{{ raw_search_response | tojson(indent=2) }}</pre>
+    </details>
+  {% endif %}
+
+  <details>
+    <summary style="cursor: pointer; font-weight: bold; color: #f39c12;">
+      Per-Flight Field Breakdown
+    </summary>
+    <div style="overflow-x: auto; margin-top: 0.5rem;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+        <thead>
+          <tr style="background: #16213e;">
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #333;">Field</th>
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #333;">Description</th>
+            <th style="padding: 6px 10px; text-align: left; border-bottom: 1px solid #333;">Sample Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>supplier</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Supplier module (stripped for api role)</td><td style="padding: 5px 10px; border-bottom: 1px solid #222; color: #888;"><em>hidden</em></td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>office_id</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Supplier office ID (stripped for api role)</td><td style="padding: 5px 10px; border-bottom: 1px solid #222; color: #888;"><em>hidden</em></td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>booking_token</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Opaque token encoding supplier+office+data</td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">btk_3f8a...</td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>flight_no</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Flight number</td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">EK784</td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>airline_name</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Carrier name</td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Emirates</td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>price</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">B2B price (replaces actual_price for api role)</td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">759354</td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>actual_price</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Original supplier price (stripped for api role)</td><td style="padding: 5px 10px; border-bottom: 1px solid #222; color: #888;"><em>hidden</em></td></tr>
+          <tr><td style="padding: 5px 10px; border-bottom: 1px solid #222;"><code>meta.sources[]</code></td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">Which supplier modules were queried</td><td style="padding: 5px 10px; border-bottom: 1px solid #222;">verteil, amadeus, brightsun</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+<!-- ===== END DEBUG PANEL ===== -->
+{% endif %}
+
+  <script>
+  // ── Flight Details Toggle ──
+  function toggleDetails(btn) {
+    btn.classList.toggle('open');
+    const panel = btn.closest('.ticket-main').querySelector('.flight-details-panel');
+    if (panel) panel.classList.toggle('open');
+  }
+
+  // ── Fare Rules Toggle ──
+  function toggleFareRules(btn) {
+    btn.classList.toggle('open');
+    const panel = btn.closest('.ticket-main').querySelector('.fare-rules-panel');
+    if (panel) panel.classList.toggle('open');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Epoch timestamp from server (milliseconds)
+    const resultsGeneratedAtMs = Number("{{ results_generated_at_ms if results_generated_at_ms is defined else session.get('results_generated_at_ms', 0) }}");
+    if (resultsGeneratedAtMs > 0) {
+      const generatedAt = resultsGeneratedAtMs;
+      const expiryTime = 10 * 60 * 1000;
+      const checkExpiry = () => {
+        const now = new Date().getTime();
+        if (now - generatedAt >= expiryTime) {
+          document.getElementById('expiryBanner').classList.add('show');
+          clearInterval(expiryInterval);
+        }
+      };
+      const expiryInterval = setInterval(checkExpiry, 5000);
+      checkExpiry();
+    }
+
+    // ── Filter/Sort functionality ──
+    const sortSelect = document.getElementById('sortBy');
+    const airlineInput = document.getElementById('airlineFilter');
+    const stopChips = document.querySelectorAll('#stopFilter .filter-chip');
+    const visibleCount = document.getElementById('visibleCount');
+    const totalCount = document.getElementById('totalCount');
+    const flights = document.querySelectorAll('.flight');
+
+    function applyFilters() {
+      const airlineQuery = airlineInput.value.trim().toLowerCase();
+      const activeStop = document.querySelector('#stopFilter .filter-chip.active');
+      const stopsFilter = activeStop ? activeStop.dataset.stops : 'all';
+      const sortVal = sortSelect.value;
+
+      // Filter
+      let visible = [];
+      flights.forEach((card) => {
+        const airlineEl = card.querySelector('.airline-badge');
+        const airline = airlineEl ? airlineEl.textContent.trim().toLowerCase() : '';
+        const stopsEl = card.querySelector('.stops-badge');
+        const stopsText = stopsEl ? stopsEl.textContent.trim() : '';
+
+        // Airline name filter
+        if (airlineQuery && !airline.includes(airlineQuery)) {
+          card.style.display = 'none';
+          return;
+        }
+
+        // Stops filter
+        if (stopsFilter !== 'all') {
+          const isDirect = stopsText === 'DIRECT';
+          const isOneStop = stopsText === '1 STOP';
+          const isMulti = !isDirect && !isOneStop;
+          if (stopsFilter === '0' && !isDirect) { card.style.display = 'none'; return; }
+          if (stopsFilter === '1' && !isOneStop) { card.style.display = 'none'; return; }
+          if (stopsFilter === '2' && !isMulti) { card.style.display = 'none'; return; }
+        }
+
+        card.style.display = '';
+        visible.push(card);
+      });
+
+      // Sort
+      visible.sort((a, b) => {
+        const getPrice = (card) => {
+          const el = card.querySelector('.price');
+          if (!el) return 0;
+          const raw = el.textContent.replace(/[^0-9.]/g, '');
+          return parseFloat(raw) || 0;
+        };
+        const getDuration = (card) => {
+          const el = card.querySelector('.ticket-duration');
+          if (!el) return '99:99';
+          return el.textContent.trim();
+        };
+        const getDepTime = (card) => {
+          const el = card.querySelector('.ticket-airport-time');
+          if (!el) return '00:00';
+          return el.textContent.trim();
+        };
+        const getArrTime = (card) => {
+          const els = card.querySelectorAll('.ticket-airport-time');
+          return els.length > 1 ? els[1].textContent.trim() : '00:00';
+        };
+        const getAirline = (card) => {
+          const el = card.querySelector('.airline-badge');
+          return el ? el.textContent.trim() : '';
+        };
+
+        switch (sortVal) {
+          case 'price-asc': return getPrice(a) - getPrice(b);
+          case 'price-desc': return getPrice(b) - getPrice(a);
+          case 'duration': return getDuration(a).localeCompare(getDuration(b));
+          case 'departure': return getDepTime(a).localeCompare(getDepTime(b));
+          case 'arrival': return getArrTime(a).localeCompare(getArrTime(b));
+          case 'airline': return getAirline(a).localeCompare(getAirline(b));
+          default: return 0;
+        }
+      });
+
+      // Re-append in sorted order
+      const list = document.querySelector('.list');
+      visible.forEach((card) => list.appendChild(card));
+
+      visibleCount.textContent = visible.length;
+    }
+
+    sortSelect.addEventListener('change', applyFilters);
+    airlineInput.addEventListener('input', applyFilters);
+
+    stopChips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        stopChips.forEach((c) => c.classList.remove('active'));
+        chip.classList.add('active');
+        applyFilters();
+      });
+    });
+
+    // Initial count
+    applyFilters();
+
+    // Airline logo loader with multi-source fallback
+    const LOGO_SOURCES = [
+      (code) => `https://pics.avs.io/200/80/${code}.png`,
+      (code) => `https://images.iasg.com/skyserver/airline-logos/${code}.png`,
+    ];
+
+    document.querySelectorAll('.airline-logo-img').forEach((img) => {
+      const code = img.getAttribute('data-iata');
+      if (!code || code.trim() === '') return;
+      
+      const badge = img.closest('.airline-badge');
+      const emoji = badge ? badge.querySelector('.airline-emoji-fallback') : null;
+      let sourceIndex = 0;
+
+      function tryLoad() {
+        if (sourceIndex >= LOGO_SOURCES.length) {
+          img.style.display = 'none';
+          if (emoji) emoji.style.display = 'inline';
+          return;
+        }
+        const url = LOGO_SOURCES[sourceIndex](code);
+        img.onerror = () => { sourceIndex++; tryLoad(); };
+        img.onload = () => {
+          img.style.display = 'inline-block';
+          if (emoji) emoji.style.display = 'none';
+        };
+        img.src = url;
+      }
+
+      if (emoji) emoji.style.display = 'inline';
+      img.style.display = 'none';
+      tryLoad();
+    });
+  });
+</script>
+{% endblock %}

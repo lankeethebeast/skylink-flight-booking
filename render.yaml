@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: skylink-flight-booking
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      # ── Secrets (set these manually in Render Dashboard) ──
+      # SKYLINK_EMAIL
+      # SKYLINK_PASSWORD
+      # FLASK_SECRET_KEY
+      # PAYSTACK_PUBLIC_KEY
+      # PAYSTACK_SECRET_KEY
+      - key: TEST_BYPASS_MODE
+        value: "false"
+      - key: SHOW_DEBUG_PANEL
+        value: "false"
+      - key: FLASK_DEBUG
+        value: "false"
+    healthCheckPath: /healthz
