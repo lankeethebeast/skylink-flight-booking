@@ -19,9 +19,11 @@
   --border-glass: rgba(0, 97, 255, 0.12);
   --border-glass-focus: rgba(0, 97, 255, 0.4);
   --shadow-glass: 0 12px 40px 0 rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 20px 60px -12px rgba(0, 0, 0, 0.1), 0 4px 18px 0 rgba(0, 0, 0, 0.04);
   
   --text-main: #0a0f1f;
   --text-muted: #6b7280;
+  --text-muted-light: #94a3b8;
   --text-dark: #000814;
   
   /* Alert States */
@@ -685,7 +687,7 @@ body {
 
 .card:hover {
   border-color: rgba(0, 97, 255, 0.18);
-  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.08), 0 0 20px 0 rgba(0, 97, 255, 0.08);
+  box-shadow: var(--shadow-elevated);
 }
 
 /* Search card special styling */
