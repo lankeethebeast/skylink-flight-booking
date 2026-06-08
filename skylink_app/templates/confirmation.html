@@ -51,12 +51,13 @@
   </div>
   {% endif %}
 
-  <h2 id="confirmTitle" style="border: none; text-align: center;">{% if pnr_data %}🎉 Booking Confirmed{% else %}⏳ Booking in Progress{% endif %}</h2>
-  <p class="muted" id="confirmSubtitle" style="text-align: center;">{% if pnr_data %}Your flight has been successfully booked. Save or print this confirmation for your records.{% else %}We are finalizing your booking and waiting for your PNR. This page will auto-refresh status.{% endif %}</p>
+  {% set payment_confirmed = (payment_status == 'paid') %}
+  <h2 id="confirmTitle" style="border: none; text-align: center;">{% if pnr_data and payment_confirmed %}🎉 Booking Confirmed{% else %}⏳ Booking in Progress{% endif %}</h2>
+  <p class="muted" id="confirmSubtitle" style="text-align: center;">{% if pnr_data and payment_confirmed %}Your flight has been successfully booked. Save or print this confirmation for your records.{% else %}Please complete your payment to confirm this booking. Your PNR has been reserved and will be revealed after payment.{% endif %}</p>
 
   <div class="pnr-block">
     <div class="pnr-label">Your Booking Reference (PNR)</div>
-    <div class="pnr" id="pnrValue">{{ pnr_data.pnr if pnr_data else 'Pending' }}</div>
+    <div class="pnr" id="pnrValue">{% if pnr_data and payment_confirmed %}{{ pnr_data.pnr }}{% else %}Pending Payment{% endif %}</div>
   </div>
 
   <div class="receipt-grid">
