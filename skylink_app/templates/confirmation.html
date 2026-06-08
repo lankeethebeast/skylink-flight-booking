@@ -51,13 +51,12 @@
   </div>
   {% endif %}
 
-  {% set payment_confirmed = (payment_status == 'paid') %}
-  <h2 id="confirmTitle" style="border: none; text-align: center;">{% if pnr_data and payment_confirmed %}🎉 Booking Confirmed{% else %}⏳ Booking in Progress{% endif %}</h2>
-  <p class="muted" id="confirmSubtitle" style="text-align: center;">{% if pnr_data and payment_confirmed %}Your flight has been successfully booked. Save or print this confirmation for your records.{% else %}Please complete your payment to confirm this booking. Your PNR has been reserved and will be revealed after payment.{% endif %}</p>
+  <h2 id="confirmTitle" style="border: none; text-align: center;">{% if pnr_data and payment_status == 'paid' %}🎉 Booking Confirmed{% else %}⏳ Booking in Progress{% endif %}</h2>
+  <p class="muted" id="confirmSubtitle" style="text-align: center;">{% if pnr_data and payment_status == 'paid' %}Your flight has been successfully booked. Save or print this confirmation for your records.{% else %}Please complete your payment to confirm this booking. Your PNR has been reserved and will be revealed after payment.{% endif %}</p>
 
   <div class="pnr-block">
     <div class="pnr-label">Your Booking Reference (PNR)</div>
-    <div class="pnr" id="pnrValue">{% if pnr_data and payment_confirmed %}{{ pnr_data.pnr }}{% else %}Pending Payment{% endif %}</div>
+    <div class="pnr" id="pnrValue">{% if pnr_data and payment_status == 'paid' %}{{ pnr_data.pnr }}{% else %}Pending Payment{% endif %}</div>
   </div>
 
   <div class="receipt-grid">
@@ -233,7 +232,16 @@
         body: formData
       });
       
-      const data = await res.json();
+      // Handle non-JSON responses (e.g. HTML error pages from the server)
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Non-JSON response:', text);
+        alert('Payment initialization failed: Server returned an unexpected response. Please try again.');
+        return;
+      }
       
       if (data.status && data.authorization_url) {
         // Redirect to Paystack checkout
