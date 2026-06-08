@@ -60,10 +60,20 @@ TEST_BYPASS_MODE = os.getenv("TEST_BYPASS_MODE", "false").strip().lower() in {"1
 SHOW_DEBUG_PANEL = os.getenv("SHOW_DEBUG_PANEL", "true").strip().lower() in {"1", "true", "yes", "on"}
 FLASK_DEBUG = os.getenv("FLASK_DEBUG", "true").strip().lower() in {"1", "true", "yes", "on"}
 
-# Server-side session configuration (keeps cookies small and avoids 4KB limits).
-app.config["SESSION_TYPE"] = "filesystem"
-app.config["SESSION_FILE_DIR"] = os.path.join(os.path.dirname(__file__), "flask_session")
-app.config["SESSION_PERMANENT"] = False
+# Server-side session configuration.
+# Use PostgreSQL-backed sessions when DATABASE_URL is set (production),
+# otherwise fall back to filesystem sessions (local development).
+from db import DATABASE_URL, _USE_PG
+
+if _USE_PG:
+    app.config["SESSION_TYPE"] = "sqlalchemy"
+    app.config["SESSION_SQLALCHEMY"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    app.config["SESSION_SQLALCHEMY_TABLE"] = "flask_sessions"
+    app.config["SESSION_PERMANENT"] = False
+else:
+    app.config["SESSION_TYPE"] = "filesystem"
+    app.config["SESSION_FILE_DIR"] = os.path.join(os.path.dirname(__file__), "flask_session")
+    app.config["SESSION_PERMANENT"] = False
 Session(app)
 
 # Template filters

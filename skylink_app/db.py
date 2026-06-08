@@ -1,81 +1,202 @@
-"""SQLite database access for bookings, payments, and session storage."""
+"""Database access for bookings, payments, and session storage.
+
+Supports both SQLite (local development) and PostgreSQL (production on Render).
+The backend is selected automatically based on the ``DATABASE_URL`` environment
+variable: if it starts with ``postgres`` or ``postgresql`` the PostgreSQL driver
+is used, otherwise SQLite is the default.
+"""
 from __future__ import annotations
 
 import json
 import logging
 import os
-import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
 
 logger = logging.getLogger("skylink.db")
 
+# ---------------------------------------------------------------------------
+# Backend detection
+# ---------------------------------------------------------------------------
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+_USE_PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+
+# For Render's DATABASE_URL which may use ``postgres://`` (deprecated by
+# some drivers).  psycopg2 prefers ``postgresql://``.
+PG_CONN_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1) if _USE_PG else ""
+
 DB_PATH = os.getenv("SKYLINK_DB_PATH", os.path.join(os.path.dirname(__file__), "skylink.db"))
 
+# ---------------------------------------------------------------------------
+# Connection helpers
+# ---------------------------------------------------------------------------
 
-def get_db_connection() -> sqlite3.Connection:
-    """Open a SQLite connection for persistent bookings/payments storage."""
+def _get_pg_connection():
+    """Return a new PostgreSQL connection using psycopg2."""
+    import psycopg2
+    import psycopg2.extras
+    conn = psycopg2.connect(PG_CONN_URL)
+    conn.autocommit = False
+    return conn
+
+
+def get_db_connection():
+    """Open a database connection.
+
+    Returns a ``sqlite3.Connection`` or a ``psycopg2.extensions.connection``
+    depending on the configured backend.  Both expose a ``.execute()``
+    method with ``?``-style placeholders for SQLite or ``%s``-style for PG.
+    """
+    if _USE_PG:
+        return _get_pg_connection()
+    import sqlite3
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def _ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, column_definition: str) -> None:
-    """Add a SQLite column when upgrading an existing local database."""
-    columns = [row[1] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()]
-    if column_name not in columns:
-        conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
+_PH = lambda n: ",".join(["?" for _ in range(n)]) if not _USE_PG else ",".join(["%s" for _ in range(n)])
+_PH_NAMED = lambda keys: ",".join([f":{k}" for k in keys]) if _USE_PG else ",".join(["?" for _ in keys])
+
+
+# ---------------------------------------------------------------------------
+# Schema
+# ---------------------------------------------------------------------------
+
+_BOOKINGS_DDL_PG = """
+CREATE TABLE IF NOT EXISTS bookings (
+    id SERIAL PRIMARY KEY,
+    invoice_id TEXT NOT NULL UNIQUE,
+    booking_token TEXT,
+    pnr TEXT,
+    booking_status TEXT DEFAULT 'pending',
+    payment_status TEXT DEFAULT 'pending',
+    passenger_name TEXT,
+    route TEXT,
+    flight_date TEXT,
+    currency TEXT DEFAULT 'NGN',
+    amount_naira DOUBLE PRECISION DEFAULT 0,
+    search_params_json TEXT,
+    pricing_response_json TEXT,
+    reserve_response_json TEXT,
+    latest_status_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
+_PAYMENTS_DDL_PG = """
+CREATE TABLE IF NOT EXISTS payments (
+    id SERIAL PRIMARY KEY,
+    reference TEXT NOT NULL UNIQUE,
+    invoice_id TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'paystack',
+    email TEXT,
+    amount_naira DOUBLE PRECISION DEFAULT 0,
+    currency TEXT DEFAULT 'NGN',
+    status TEXT DEFAULT 'initialized',
+    access_code TEXT,
+    authorization_url TEXT,
+    paid_at TEXT,
+    raw_initialize_json TEXT,
+    raw_verify_json TEXT,
+    raw_webhook_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(invoice_id) REFERENCES bookings(invoice_id)
+);
+"""
+
+_BOOKINGS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS bookings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    invoice_id TEXT NOT NULL UNIQUE,
+    booking_token TEXT,
+    pnr TEXT,
+    booking_status TEXT DEFAULT 'pending',
+    payment_status TEXT DEFAULT 'pending',
+    passenger_name TEXT,
+    route TEXT,
+    flight_date TEXT,
+    currency TEXT DEFAULT 'NGN',
+    amount_naira REAL DEFAULT 0,
+    search_params_json TEXT,
+    pricing_response_json TEXT,
+    reserve_response_json TEXT,
+    latest_status_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
+_PAYMENTS_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS payments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reference TEXT NOT NULL UNIQUE,
+    invoice_id TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'paystack',
+    email TEXT,
+    amount_naira REAL DEFAULT 0,
+    currency TEXT DEFAULT 'NGN',
+    status TEXT DEFAULT 'initialized',
+    access_code TEXT,
+    authorization_url TEXT,
+    paid_at TEXT,
+    raw_initialize_json TEXT,
+    raw_verify_json TEXT,
+    raw_webhook_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(invoice_id) REFERENCES bookings(invoice_id)
+);
+"""
+
+
+def _ensure_column_sqlite(table_name: str, column_name: str, column_definition: str) -> None:
+    """Add a column to an existing SQLite table if it doesn't exist."""
+    with get_db_connection() as conn:
+        columns = [row[1] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()]
+        if column_name not in columns:
+            conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
+            conn.commit()
+
+
+def _ensure_column_pg(table_name: str, column_name: str, column_definition: str) -> None:
+    """Add a column to an existing PostgreSQL table if it doesn't exist."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = %s AND column_name = %s",
+                (table_name, column_name),
+            )
+            if not cur.fetchone():
+                cur.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}")
+                conn.commit()
 
 
 def init_db() -> None:
     """Create database tables if they do not already exist."""
-    with get_db_connection() as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS bookings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                invoice_id TEXT NOT NULL UNIQUE,
-                booking_token TEXT,
-                pnr TEXT,
-                booking_status TEXT DEFAULT 'pending',
-                payment_status TEXT DEFAULT 'pending',
-                passenger_name TEXT,
-                route TEXT,
-                flight_date TEXT,
-                currency TEXT DEFAULT 'NGN',
-                amount_naira REAL DEFAULT 0,
-                search_params_json TEXT,
-                pricing_response_json TEXT,
-                reserve_response_json TEXT,
-                latest_status_json TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
+    if _USE_PG:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_BOOKINGS_DDL_PG)
+                cur.execute(_PAYMENTS_DDL_PG)
+                conn.commit()
+        _ensure_column_pg("bookings", "amount_naira", "DOUBLE PRECISION DEFAULT 0")
+        _ensure_column_pg("payments", "amount_naira", "DOUBLE PRECISION DEFAULT 0")
+        logger.info("PostgreSQL database initialised.")
+    else:
+        with get_db_connection() as conn:
+            conn.executescript(_BOOKINGS_DDL_SQLITE + _PAYMENTS_DDL_SQLITE)
+        _ensure_column_sqlite("bookings", "amount_naira", "REAL DEFAULT 0")
+        _ensure_column_sqlite("payments", "amount_naira", "REAL DEFAULT 0")
+        logger.info("SQLite database initialised at %s", DB_PATH)
 
-            CREATE TABLE IF NOT EXISTS payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reference TEXT NOT NULL UNIQUE,
-                invoice_id TEXT NOT NULL,
-                provider TEXT NOT NULL DEFAULT 'paystack',
-                email TEXT,
-                amount_naira REAL DEFAULT 0,
-                currency TEXT DEFAULT 'NGN',
-                status TEXT DEFAULT 'initialized',
-                access_code TEXT,
-                authorization_url TEXT,
-                paid_at TEXT,
-                raw_initialize_json TEXT,
-                raw_verify_json TEXT,
-                raw_webhook_json TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(invoice_id) REFERENCES bookings(invoice_id)
-            );
-            """
-        )
-        _ensure_column(conn, "bookings", "amount_naira", "REAL DEFAULT 0")
-        _ensure_column(conn, "payments", "amount_naira", "REAL DEFAULT 0")
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def json_dumps(value: Any) -> str | None:
     """JSON-encode ``value`` with safe defaults; return ``None`` for ``None``."""
@@ -85,6 +206,10 @@ def json_dumps(value: Any) -> str | None:
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
+# ---------------------------------------------------------------------------
+# Generic upsert
+# ---------------------------------------------------------------------------
 
 def _upsert_row(
     table: str,
@@ -100,49 +225,73 @@ def _upsert_row(
     if not data.get(conflict_col):
         return
     payload = {c: data.get(c) for c in cols}
-    # Guard against NOT NULL constraint violations: drop columns whose
-    # values are None so the database uses its DEFAULT instead.
+
     required_not_null = {"invoice_id", "reference"}
     for col in list(payload):
         if payload[col] is None and col in required_not_null:
             logger.warning("Skipping %s: %s is None in %s", table, col, data)
             return
+
     payload["created_at"] = _now_iso()
     payload["updated_at"] = payload["created_at"]
-    placeholders = ", ".join("?" for _ in payload)
+
     # Only UPDATE columns that actually have non-None values so that partial
-    # upserts (e.g. upsert_booking(invoice, payment_status="paid")) don't
-    # wipe existing data to NULL.
-    updates = ", ".join(
-        f"{col}=excluded.{col}"
-        for col in payload
-        if col not in {conflict_col, "created_at"} and payload[col] is not None
-    )
+    # upserts don't wipe existing data to NULL.
+    update_cols = [c for c in payload if c not in {conflict_col, "created_at"} and payload[c] is not None]
+
+    if _USE_PG:
+        _upsert_row_pg(table, conflict_col, payload, update_cols)
+    else:
+        _upsert_row_sqlite(table, conflict_col, payload, update_cols)
+
+
+def _upsert_row_sqlite(table, conflict_col, payload, update_cols):
     columns_sql = ", ".join(payload.keys())
+    placeholders = ",".join(["?" for _ in payload])
+    updates = ", ".join(f"{col}=excluded.{col}" for col in update_cols)
     with get_db_connection() as conn:
         conn.execute(
-            f"""
-            INSERT INTO {table} ({columns_sql})
-            VALUES ({placeholders})
-            ON CONFLICT({conflict_col}) DO UPDATE SET {updates}
-            """,
+            f"INSERT INTO {table} ({columns_sql}) VALUES ({placeholders}) "
+            f"ON CONFLICT({conflict_col}) DO UPDATE SET {updates}",
             list(payload.values()),
         )
+        conn.commit()
 
 
-# Columns actually present in the ``bookings`` table (matches init_db).
+def _upsert_row_pg(table, conflict_col, payload, update_cols):
+    columns = list(payload.keys())
+    col_names = ", ".join(columns)
+    placeholders = ", ".join(["%s"] * len(columns))
+    updates = ", ".join(f"{col}=EXCLUDED.{col}" for col in update_cols)
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"INSERT INTO {table} ({col_names}) VALUES ({placeholders}) "
+                f"ON CONFLICT({conflict_col}) DO UPDATE SET {updates}",
+                list(payload.values()),
+            )
+            conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Column definitions
+# ---------------------------------------------------------------------------
+
 BOOKING_COLS = (
     "booking_token", "pnr", "booking_status", "payment_status", "passenger_name",
     "route", "flight_date", "currency", "amount_naira", "search_params_json",
     "pricing_response_json", "reserve_response_json", "latest_status_json",
 )
 
-# Columns actually present in the ``payments`` table.
 PAYMENT_COLS = (
     "invoice_id", "provider", "email", "amount_naira", "currency", "status", "access_code",
     "authorization_url", "paid_at", "raw_initialize_json", "raw_verify_json", "raw_webhook_json",
 )
 
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def upsert_booking(invoice_id: str, **fields: Any) -> None:
     """Insert or update a booking by ``invoice_id``."""
@@ -170,11 +319,18 @@ def get_invoice_id_for_reference(reference: str) -> str | None:
     if not reference:
         return None
     with get_db_connection() as conn:
-        row = conn.execute(
-            "SELECT invoice_id FROM payments WHERE reference = ? LIMIT 1",
-            (reference,),
-        ).fetchone()
-    return row["invoice_id"] if row else None
+        if _USE_PG:
+            with conn.cursor() as cur:
+                cur.execute("SELECT invoice_id FROM payments WHERE reference = %s LIMIT 1", (reference,))
+                row = cur.fetchone()
+        else:
+            row = conn.execute(
+                "SELECT invoice_id FROM payments WHERE reference = ? LIMIT 1",
+                (reference,),
+            ).fetchone()
+    if row is None:
+        return None
+    return row[0] if _USE_PG else row["invoice_id"]
 
 
 def get_booking_by_invoice(invoice_id: str) -> dict | None:
@@ -182,20 +338,24 @@ def get_booking_by_invoice(invoice_id: str) -> dict | None:
     if not invoice_id:
         return None
     with get_db_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM bookings WHERE invoice_id = ? LIMIT 1",
-            (invoice_id,),
-        ).fetchone()
-    return dict(row) if row else None
+        if _USE_PG:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM bookings WHERE invoice_id = %s LIMIT 1", (invoice_id,))
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                cols = [desc[0] for desc in cur.description]
+                return dict(zip(cols, row))
+        else:
+            row = conn.execute(
+                "SELECT * FROM bookings WHERE invoice_id = ? LIMIT 1",
+                (invoice_id,),
+            ).fetchone()
+            return dict(row) if row else None
 
 
 def local_booking_status(invoice_id: str) -> dict:
-    """Build booking status from local data only.
-
-    SkyLink does not expose /api/flights/booking/status/{invoice_id}, so the
-    app must not call that external URL. Until the reserve response itself
-    includes a PNR, status is based on the local booking/payment records.
-    """
+    """Build booking status from local data only."""
     booking = get_booking_by_invoice(invoice_id)
     if not booking:
         return {
