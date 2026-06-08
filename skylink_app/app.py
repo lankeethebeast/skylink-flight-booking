@@ -63,11 +63,22 @@ FLASK_DEBUG = os.getenv("FLASK_DEBUG", "true").strip().lower() in {"1", "true", 
 # Server-side session configuration.
 # Use PostgreSQL-backed sessions when DATABASE_URL is set (production),
 # otherwise fall back to filesystem sessions (local development).
-from db import DATABASE_URL, _USE_PG
+from db import _USE_PG, _active_pg_uri, PG_DBNAME
 from flask_sqlalchemy import SQLAlchemy
 
 if _USE_PG:
-    pg_uri = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    pg_uri = _active_pg_uri()
+    # Log a redacted view of the URI so deploy issues are easier to debug.
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(pg_uri)
+        logger.info("PostgreSQL session URI: scheme=%s host=%s port=%s db=%s",
+                    parsed.scheme, parsed.hostname, parsed.port,
+                    parsed.path.lstrip("/"))
+        if PG_DBNAME:
+            logger.info("PG_DBNAME override in effect -> %s", PG_DBNAME)
+    except Exception:
+        pass
     app.config["SQLALCHEMY_DATABASE_URI"] = pg_uri
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     _session_db = SQLAlchemy(app)
