@@ -238,11 +238,12 @@
         // Redirect to Paystack checkout
         window.location.href = data.authorization_url;
       } else {
-        alert('Payment initialization failed: ' + (data.message || 'Unknown error'));
+        const errMsg = data.message || data.error || 'Unknown error';
+        alert('Payment initialization failed: ' + errMsg);
       }
     } catch (error) {
       console.error('Payment error:', error);
-      alert('Payment error: ' + error.message);
+      alert('Payment error: ' + (error.message || 'Network error. Please try again.'));
     }
   }
 
