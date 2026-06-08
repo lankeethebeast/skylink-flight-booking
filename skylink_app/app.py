@@ -487,7 +487,10 @@ def reserve():
     amount_kobo = calculate_total_amount(pricing)
     amount_naira = kobo_to_naira(amount_kobo) if amount_kobo else 0.0
     booking_status = reserve_data.get("booking_status") or reserve_data.get("status") or "reserved"
-    payment_status = reserve_data.get("payment_status") or ("paid" if TEST_BYPASS_MODE else "pending")
+    # Always start as "pending" for the Paystack flow; only become "paid" after
+    # Paystack verification.  The provider's own payment_status is not used here
+    # because the user must complete the Paystack checkout before PNR is revealed.
+    payment_status = "paid" if TEST_BYPASS_MODE else "pending"
     if reserve_data.get("pnr"):
         session["pnr_data"] = {
             "pnr": reserve_data.get("pnr"),
@@ -530,11 +533,23 @@ def status():
     invoice_id = request.args.get("invoice_id") or session.get("invoice_id")
     status_data = local_booking_status(invoice_id)
 
-    if status_data.get("has_pnr"):
+    # Only expose PNR data after payment is confirmed as paid
+    if status_data.get("has_pnr") and (
+        session.get("payment_status") == "paid"
+        or status_data.get("payment_status") == "paid"
+    ):
         session["pnr_data"] = status_data
     session["latest_status_response"] = status_data
     if invoice_id and status_data.get("booking_status") != "unknown":
         upsert_booking(invoice_id, latest_status_json=json_dumps(status_data))
+
+    # Redact PNR from the response if payment is not yet confirmed as paid.
+    # Only check the DATABASE payment_status (not session) to avoid stale
+    # "paid" from a previous booking leaking the PNR of the current one.
+    is_paid = status_data.get("payment_status") == "paid"
+    if not is_paid and status_data.get("has_pnr"):
+        status_data["has_pnr"] = False
+        status_data["pnr"] = None
 
     if status_data.get("booking_status") == "error" or status_data.get("error"):
         return jsonify(status_data), 400
@@ -549,16 +564,30 @@ def confirm():
     if payment_status:
         session["payment_status"] = payment_status
     session["latest_status_response"] = local_status
+    # Always use the DATABASE payment_status for the current booking — never
+    # trust the session, which may hold "paid" from a previous booking.
+    payment_status = local_status.get("payment_status") or "pending"
+    session["payment_status"] = payment_status
+
+    # Only expose PNR when payment is confirmed as paid
+    pnr_data = session.get("pnr_data") if payment_status == "paid" else None
+
+    # Redact PNR from debug panel data when payment is not paid
+    display_status = dict(local_status)
+    if payment_status != "paid" and display_status.get("has_pnr"):
+        display_status["has_pnr"] = False
+        display_status["pnr"] = None
+
     return render_template(
         "confirmation.html",
-        pnr_data=session.get("pnr_data"),
+        pnr_data=pnr_data,
         invoice_id=invoice_id,
         display_invoice_id=display_invoice_id(invoice_id),
         payment_url=session.get("payment_url"),
         test_bypass_mode=TEST_BYPASS_MODE,
         show_debug_panel=SHOW_DEBUG_PANEL,
         reserve_response=session.get("reserve_response"),
-        latest_status_response=local_status,
+        latest_status_response=display_status,
         payment_status=payment_status,
         paystack_public_key=PAYSTACK_PUBLIC_KEY,
         paystack_is_public_key_configured=paystack_is_public_key_configured,
@@ -573,12 +602,25 @@ def confirmation_legacy():
 
 # ── Paystack Payment Integration ──────────────────────────────────────────────
 @app.route("/payment/paystack", methods=["POST"])
-@handle_api_errors
 def paystack_payment():
-    """Initialize a Paystack transaction for the current booking."""
+    """Initialize a Paystack transaction for the current booking.
+
+    This endpoint intentionally does NOT use the ``@handle_api_errors``
+    decorator so that it always returns JSON — the front-end fetch() call
+    needs a parseable JSON body on every code path.
+    """
+    try:
+        return _paystack_payment_inner()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Unexpected error in paystack_payment")
+        return jsonify({"error": f"Server error: {exc}"}), 500
+
+
+def _paystack_payment_inner():
+    """Core logic separated so the outer wrapper can catch everything."""
     if not paystack_is_configured():
         return jsonify({
-            "error": "Paystack not configured. Please set your API keys in .env"
+            "error": "Paystack not configured. Please set PAYSTACK_SECRET_KEY in your Render environment variables."
         }), 500
 
     email = request.form.get("email") or session.get("email") or request.form.get("adult_0_email")
