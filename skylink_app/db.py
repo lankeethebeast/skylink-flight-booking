@@ -12,6 +12,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
+from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger("skylink.db")
 
@@ -24,6 +25,33 @@ _USE_PG = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 # For Render's DATABASE_URL which may use ``postgres://`` (deprecated by
 # some drivers).  psycopg2 prefers ``postgresql://``.
 PG_CONN_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1) if _USE_PG else ""
+
+# Database name can be overridden via PG_DBNAME for situations where the
+# main URL points to the default ``postgres`` admin database (Render does
+# this when DATABASE_URL is auto-generated without a specific db).  The
+# app data and session table are written to this database.
+PG_DBNAME = os.getenv("PG_DBNAME", "")
+
+
+def _derive_pg_uri(dbname: str = "") -> str:
+    """Return the PG URI, optionally rewriting the database name.
+
+    If ``dbname`` is empty, returns the URL unchanged.  Otherwise parses
+    the URL with urllib, swaps the path, and returns the canonical
+    ``postgresql://`` form.
+    """
+    if not dbname or not _USE_PG:
+        return PG_CONN_URL
+    parsed = urlparse(PG_CONN_URL)
+    # Path is ``/dbname`` — replace just the db segment.
+    new_path = "/" + dbname.lstrip("/")
+    return urlunparse(parsed._replace(path=new_path))
+
+
+def _active_pg_uri() -> str:
+    """The PG URI the app should actually use (with PG_DBNAME applied)."""
+    return _derive_pg_uri(PG_DBNAME) if PG_DBNAME else PG_CONN_URL
+
 
 DB_PATH = os.getenv("SKYLINK_DB_PATH", os.path.join(os.path.dirname(__file__), "skylink.db"))
 
