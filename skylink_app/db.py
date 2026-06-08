@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
+
+logger = logging.getLogger("skylink.db")
 
 DB_PATH = os.getenv("SKYLINK_DB_PATH", os.path.join(os.path.dirname(__file__), "skylink.db"))
 
@@ -97,11 +100,23 @@ def _upsert_row(
     if not data.get(conflict_col):
         return
     payload = {c: data.get(c) for c in cols}
+    # Guard against NOT NULL constraint violations: drop columns whose
+    # values are None so the database uses its DEFAULT instead.
+    required_not_null = {"invoice_id", "reference"}
+    for col in list(payload):
+        if payload[col] is None and col in required_not_null:
+            logger.warning("Skipping %s: %s is None in %s", table, col, data)
+            return
     payload["created_at"] = _now_iso()
     payload["updated_at"] = payload["created_at"]
     placeholders = ", ".join("?" for _ in payload)
+    # Only UPDATE columns that actually have non-None values so that partial
+    # upserts (e.g. upsert_booking(invoice, payment_status="paid")) don't
+    # wipe existing data to NULL.
     updates = ", ".join(
-        f"{col}=excluded.{col}" for col in payload if col not in {conflict_col, "created_at"}
+        f"{col}=excluded.{col}"
+        for col in payload
+        if col not in {conflict_col, "created_at"} and payload[col] is not None
     )
     columns_sql = ", ".join(payload.keys())
     with get_db_connection() as conn:
@@ -124,7 +139,7 @@ BOOKING_COLS = (
 
 # Columns actually present in the ``payments`` table.
 PAYMENT_COLS = (
-    "provider", "email", "amount_naira", "currency", "status", "access_code",
+    "invoice_id", "provider", "email", "amount_naira", "currency", "status", "access_code",
     "authorization_url", "paid_at", "raw_initialize_json", "raw_verify_json", "raw_webhook_json",
 )
 
