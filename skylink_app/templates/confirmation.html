@@ -114,7 +114,7 @@
   </div>
 
   <!-- Paystack Payment Modal -->
-  <div id="paystackModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+  <div id="paystackModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
     <div class="card" style="max-width: 400px; width: 90%;">
       <h3>💳 Paystack Payment</h3>
       <form id="paystackForm" onsubmit="initializePaystackPayment(event)">
@@ -181,7 +181,9 @@
           paymentStatusEl.style.color = data.payment_status === 'paid' ? 'var(--state-success)' : '#f59e0b';
         }
 
-        if (data.has_pnr && data.pnr) {
+        // Only show PNR when payment is confirmed as paid
+        const isPaid = (paymentStatus === 'paid' || data.payment_status === 'paid');
+        if (data.has_pnr && data.pnr && isPaid) {
           pnrEl.textContent = data.pnr;
           titleEl.textContent = '🎉 Booking Confirmed';
           subtitleEl.textContent = 'Your PNR is ready. Save or print this confirmation for your records.';
@@ -189,7 +191,7 @@
           return;
         }
 
-        if (paymentStatus === 'paid' || data.payment_status === 'paid') {
+        if (isPaid) {
           subtitleEl.textContent = 'Payment confirmed ✅ — Generating your PNR... This usually takes a few moments.';
         } else {
           subtitleEl.textContent = 'Waiting for PNR... Please complete payment to generate your booking reference.';
