@@ -64,10 +64,15 @@ FLASK_DEBUG = os.getenv("FLASK_DEBUG", "true").strip().lower() in {"1", "true", 
 # Use PostgreSQL-backed sessions when DATABASE_URL is set (production),
 # otherwise fall back to filesystem sessions (local development).
 from db import DATABASE_URL, _USE_PG
+from flask_sqlalchemy import SQLAlchemy
 
 if _USE_PG:
+    pg_uri = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    app.config["SQLALCHEMY_DATABASE_URI"] = pg_uri
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    _session_db = SQLAlchemy(app)
     app.config["SESSION_TYPE"] = "sqlalchemy"
-    app.config["SESSION_SQLALCHEMY"] = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    app.config["SESSION_SQLALCHEMY"] = _session_db
     app.config["SESSION_SQLALCHEMY_TABLE"] = "flask_sessions"
     app.config["SESSION_PERMANENT"] = False
 else:
