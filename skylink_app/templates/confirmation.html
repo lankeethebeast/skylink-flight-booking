@@ -95,19 +95,17 @@
   </div>
 
   <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2.5rem; flex-wrap: wrap;">
-    {% if not pnr_data %}
+    {% if payment_status != 'paid' %}
       {% if payment_url %}
       <a href="{{ payment_url }}" target="_blank" class="btn" id="testPaymentBtn">💳 Complete Test Payment</a>
       {% endif %}
-      {% if payment_status != 'paid' %}
-        {% if paystack_public_key and paystack_public_key != '' and not paystack_public_key.startswith('pk_test_YOUR') %}
-          <button class="btn" onclick="payWithPaystack()" id="paystackBtn" style="background: linear-gradient(135deg, #059669, #10b981);">💳 Pay with Paystack</button>
-        {% else %}
-          <button class="btn" onclick="alert('Paystack is not configured. Please contact support.')" id="paystackBtn" style="opacity: 0.6;">💳 Pay with Paystack (Not Configured)</button>
-        {% endif %}
+      {% if paystack_public_key and paystack_public_key != '' and not paystack_public_key.startswith('pk_test_YOUR') %}
+        <button class="btn" onclick="payWithPaystack()" id="paystackBtn" style="background: linear-gradient(135deg, #059669, #10b981);">💳 Pay with Paystack</button>
       {% else %}
-        <span style="color: var(--state-success); font-weight: 600;">✅ Payment Complete</span>
+        <button class="btn" onclick="alert('Paystack is not configured. Please contact support.')" id="paystackBtn" style="opacity: 0.6;">💳 Pay with Paystack (Not Configured)</button>
       {% endif %}
+    {% else %}
+      <span style="color: var(--state-success); font-weight: 600;">✅ Payment Complete</span>
     {% endif %}
     <button class="btn" onclick="window.print()" id="printBtn">🖨️ Print / Download</button>
     <a href="{{ url_for('index') }}" class="btn btn-secondary" id="searchAgainBtn">✈ Book Another Flight</a>
