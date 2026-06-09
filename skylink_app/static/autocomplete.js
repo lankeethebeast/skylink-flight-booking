@@ -30,29 +30,34 @@
     ).slice(0, 8); // limit to 8 results
   }
 
-  // Create autocomplete dropdown
+  // Create autocomplete dropdown — append to body so it is never clipped
   function createDropdown(input) {
-    const wrapper = input.closest('label') || input.parentElement;
-    wrapper.style.position = 'relative';
-    
     const dropdown = document.createElement('div');
     dropdown.className = 'airport-autocomplete-dropdown';
     dropdown.style.cssText = `
       display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      z-index: 9999;
+      position: fixed;
+      z-index: 99999;
       background: #fff;
       border: 1px solid rgba(0,97,255,0.12);
       border-radius: 8px;
       max-height: 280px;
       overflow-y: auto;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.12);
-      margin-top: 4px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
     `;
-    wrapper.appendChild(dropdown);
+    document.body.appendChild(dropdown);
+
+    // Position the dropdown below the input on every show
+    function positionDropdown() {
+      const rect = input.getBoundingClientRect();
+      dropdown.style.top = (rect.bottom + 4) + 'px';
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.width = rect.width + 'px';
+    }
+
+    // Expose positioning so callers can reposition before display
+    dropdown._positionDropdown = positionDropdown;
+
     return dropdown;
   }
 
@@ -91,6 +96,8 @@
       </div>
     `).join('');
 
+    // Position below the input, then show
+    if (dropdown._positionDropdown) dropdown._positionDropdown();
     dropdown.style.display = 'block';
 
     // Add hover effects and click handlers
