@@ -223,103 +223,7 @@
     </div>
 
   {% elif flights %}
-    <!-- Skeleton loading cards (hidden once real flights render) -->
-    <div class="list" id="skeletonList" style="display: none;">
-      <div class="skeleton-flight-card" aria-hidden="true">
-        <div class="skeleton-flight-main">
-          <div class="skeleton" style="height: 20px; width: 120px; border-radius: 6px;"></div>
-          <div class="skeleton-route">
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-            <div class="skeleton-flight-path">
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton" style="height: 2px; width: 100%; border-radius: 2px;"></div>
-            </div>
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-          </div>
-          <div class="skeleton-info-row">
-            <div class="skeleton skeleton-badge"></div>
-            <div class="skeleton" style="height: 14px; width: 80px; border-radius: 6px;"></div>
-          </div>
-        </div>
-        <div class="skeleton-flight-stub">
-          <div class="skeleton skeleton-text sm"></div>
-          <div class="skeleton skeleton-text lg"></div>
-          <div class="skeleton skeleton-btn"></div>
-          <div class="skeleton" style="height: 20px; width: 60px; border-radius: 4px;"></div>
-        </div>
-      </div>
-      <div class="skeleton-flight-card" aria-hidden="true" style="animation-delay: 0.1s;">
-        <div class="skeleton-flight-main">
-          <div class="skeleton" style="height: 20px; width: 140px; border-radius: 6px;"></div>
-          <div class="skeleton-route">
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-            <div class="skeleton-flight-path">
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton" style="height: 2px; width: 100%; border-radius: 2px;"></div>
-            </div>
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-          </div>
-          <div class="skeleton-info-row">
-            <div class="skeleton skeleton-badge"></div>
-            <div class="skeleton" style="height: 14px; width: 70px; border-radius: 6px;"></div>
-          </div>
-        </div>
-        <div class="skeleton-flight-stub">
-          <div class="skeleton skeleton-text sm"></div>
-          <div class="skeleton skeleton-text lg"></div>
-          <div class="skeleton skeleton-btn"></div>
-          <div class="skeleton" style="height: 20px; width: 60px; border-radius: 4px;"></div>
-        </div>
-      </div>
-      <div class="skeleton-flight-card" aria-hidden="true" style="animation-delay: 0.2s;">
-        <div class="skeleton-flight-main">
-          <div class="skeleton" style="height: 20px; width: 100px; border-radius: 6px;"></div>
-          <div class="skeleton-route">
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-            <div class="skeleton-flight-path">
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton" style="height: 2px; width: 100%; border-radius: 2px;"></div>
-            </div>
-            <div class="skeleton-airport">
-              <div class="skeleton skeleton-text lg"></div>
-              <div class="skeleton skeleton-text sm"></div>
-              <div class="skeleton skeleton-text" style="width: 40px;"></div>
-            </div>
-          </div>
-          <div class="skeleton-info-row">
-            <div class="skeleton skeleton-badge"></div>
-            <div class="skeleton" style="height: 14px; width: 90px; border-radius: 6px;"></div>
-          </div>
-        </div>
-        <div class="skeleton-flight-stub">
-          <div class="skeleton skeleton-text sm"></div>
-          <div class="skeleton skeleton-text lg"></div>
-          <div class="skeleton skeleton-btn"></div>
-          <div class="skeleton" style="height: 20px; width: 60px; border-radius: 4px;"></div>
-        </div>
-      </div>
-    </div>
-    <div class="list" id="flightsList">
+    <div class="list">
     {% for f in flights %}
       {% set seg = (((f.segments or [])[0] or [])[0] if f.segments else {}) %}
       {% set airline_name = f.airline_name or seg.airline_name or f.airline or seg.airline or 'Airline' %}
@@ -642,25 +546,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    // ── Skeleton loading → Real content transition ──
-    const skeletonList = document.getElementById('skeletonList');
-    const flightsList = document.getElementById('flightsList');
-    if (skeletonList && flightsList) {
-      // Show skeleton briefly while flights are being populated
-      skeletonList.style.display = '';
-      flightsList.style.display = 'none';
-      // Use requestAnimationFrame to ensure smooth transition after layout
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          skeletonList.style.display = 'none';
-          flightsList.style.display = '';
-          // Trigger the ticketEnter animations on flight cards
-          flightsList.querySelectorAll('.flight').forEach((card, i) => {
-            card.style.animationDelay = (i * 0.07) + 's';
-          });
-        }, 400); // Brief 400ms skeleton display for smooth perceived loading
-      });
-    }
     // Epoch timestamp from server (milliseconds)
     const resultsGeneratedAtMs = Number("{{ results_generated_at_ms if results_generated_at_ms is defined else session.get('results_generated_at_ms', 0) }}");
     if (resultsGeneratedAtMs > 0) {
