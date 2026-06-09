@@ -892,7 +892,7 @@ h3 {
 }
 
 .search-date-wrap .search-date-icon {
-  margin-right: 8px;
+  display: none;
 }
 
 .search-date-display {
