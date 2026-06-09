@@ -34,17 +34,17 @@
   function createDropdown(input) {
     const dropdown = document.createElement('div');
     dropdown.className = 'airport-autocomplete-dropdown';
-    dropdown.style.cssText = `
-      display: none;
-      position: fixed;
-      z-index: 99999;
-      background: #fff;
-      border: 1px solid rgba(0,97,255,0.12);
-      border-radius: 8px;
-      max-height: 280px;
-      overflow-y: auto;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
-    `;
+    Object.assign(dropdown.style, {
+      display: 'none',
+      position: 'fixed',
+      zIndex: '2147483647',   // max 32-bit signed int
+      background: '#fff',
+      border: '1px solid rgba(0,97,255,0.12)',
+      borderRadius: '8px',
+      maxHeight: '280px',
+      overflowY: 'auto',
+      boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
+    });
     document.body.appendChild(dropdown);
 
     // Position the dropdown below the input on every show

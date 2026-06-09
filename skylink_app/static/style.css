@@ -897,6 +897,17 @@ h3 {
   display: none;
 }
 
+/* Airport autocomplete dropdown — always above everything */
+.airport-autocomplete-dropdown {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+}
+
+/* Ensure leg rows don't create stacking contexts that clip the dropdown */
+.leg-row {
+  isolation: auto;
+}
+
 .search-date-display {
   display: inline;
   width: calc(100% - 2rem);
