@@ -1,14 +1,14 @@
-{% extends "base.html" %}
-{% block title %}Find Cheap Flights · SkyLink{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Find Cheap Flights Â· SkyLink{% endblock %}
 {% block content %}
 
 <!-- Hero Section -->
 <section class="hero">
   <div class="hero-bg"></div>
-  <span class="hero-plane">✈</span>
-  <span class="hero-plane">✈</span>
+  <span class="hero-plane">âœˆ</span>
+  <span class="hero-plane">âœˆ</span>
   <div class="hero-content">
-    <div class="hero-badge">🌟 Trusted by 500+ Travel Partners</div>
+    <div class="hero-badge">ðŸŒŸ Trusted by 500+ Travel Partners</div>
     <h1>Discover Your Next<br>Adventure Skyward</h1>
     <p>Access live, supplier-direct flight inventories from 100+ airlines worldwide. Book premium flights instantly at competitive B2B rates.</p>
     <div class="hero-stats">
@@ -31,7 +31,7 @@
 <!-- Search Form Card -->
 <section class="card card-search" style="max-width: 1100px;">
   <div class="search-icon-row">
-    <span>🔍</span>
+    <span>ðŸ”</span>
     <h1 style="margin-bottom: 0;">Search & Book Premium Flights</h1>
   </div>
   <p class="muted">Access live, supplier-direct flight inventories instantly.</p>
@@ -44,21 +44,21 @@
       <div class="search-loading-subtext">Finding the best options for you</div>
     </div>
     
-    <!-- Row 1: Origin → Destination → Trip Type → Departure Date → Return Date (conditional) -->
+    <!-- Row 1: Origin â†’ Destination â†’ Trip Type â†’ Departure Date â†’ Return Date (conditional) -->
     <div class="search-main-grid" id="mainSearchRow">
       <label for="fromCode" id="singleFromWrap" class="search-label">
         <span class="search-label-text">Origin</span>
         <div class="search-input-wrap">
-          <span>✈️</span>
+          <span>âœˆï¸</span>
           <input name="from_code" id="fromCode" placeholder="City or airport" maxlength="20" class="search-input" autocomplete="off" />
-          <button type="button" id="swapBtn" class="search-swap-btn" title="Swap origin and destination" aria-label="Swap origin and destination">⇄</button>
+          <button type="button" id="swapBtn" class="search-swap-btn" title="Swap origin and destination" aria-label="Swap origin and destination">â‡„</button>
         </div>
       </label>
       
       <label for="toCode" id="singleToWrap" class="search-label">
         <span class="search-label-text">Destination</span>
         <div class="search-input-wrap">
-          <span>📍</span>
+          <span>ðŸ“</span>
           <input name="to_code" id="toCode" placeholder="City or airport" maxlength="20" class="search-input" autocomplete="off" />
         </div>
       </label>
@@ -77,7 +77,6 @@
       <label for="departureDatePicker" id="singleDepartWrap" class="search-label">
         <span class="search-label-text">Departure</span>
         <div class="search-date-wrap date-field-wrap">
-          <span class="search-date-icon" aria-hidden="true">📅</span>
           <input type="text" id="departureDateDisplay" class="search-date-display date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" />
           <input type="date" id="departureDatePicker" class="native-date-picker" title="Select departure date" aria-label="Select departure date" />
         </div>
@@ -87,7 +86,6 @@
       <label id="returnDateWrap" class="search-label" style="display:none;" for="returnDatePicker">
         <span class="search-label-text">Return</span>
         <div class="search-date-wrap date-field-wrap">
-          <span class="search-date-icon" aria-hidden="true">📅</span>
           <input type="text" id="returnDateDisplay" class="search-date-display date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" />
           <input type="date" id="returnDatePicker" class="native-date-picker" title="Select return date" aria-label="Select return date" />
         </div>
@@ -106,15 +104,15 @@
       </div>
     </div>
 
-    <!-- Row 2: Passengers (combined dropdown) → Cabin Class → Search -->
+    <!-- Row 2: Passengers (combined dropdown) â†’ Cabin Class â†’ Search -->
     <div class="search-secondary-grid">
       <!-- Passenger Counter Dropdown -->
       <label id="passengerWrap" class="search-label" style="position: relative;">
         <span class="search-label-text">Passengers</span>
         <div class="search-input-wrap" id="passengerToggle" style="cursor: pointer;">
-          <span>👤</span>
+          <span>ðŸ‘¤</span>
           <span id="passengerSummary" style="flex: 1; color: var(--text-main); font-size: 0.95rem;">1 Adult</span>
-          <span style="color: var(--color-primary); font-size: 0.75rem;">▼</span>
+          <span style="color: var(--color-primary); font-size: 0.75rem;">â–¼</span>
         </div>
         <!-- Hidden inputs for form submission -->
         <input type="hidden" name="adults" id="adultCount" value="1" />
@@ -143,7 +141,7 @@
               <div class="pax-row-label-desc">12+ years</div>
             </div>
             <div class="pax-row-controls">
-              <button type="button" class="pax-btn-circle pax-minus" data-target="adultCount" data-min="1" data-max="9">−</button>
+              <button type="button" class="pax-btn-circle pax-minus" data-target="adultCount" data-min="1" data-max="9">âˆ’</button>
               <span id="adultCountDisplay" class="pax-count-display">1</span>
               <button type="button" class="pax-btn-circle pax-plus" data-target="adultCount" data-min="1" data-max="9">+</button>
             </div>
@@ -152,10 +150,10 @@
           <div class="pax-row pax-row-bordered">
             <div>
               <div class="pax-row-label-name">Children</div>
-              <div class="pax-row-label-desc">2 – 11 years</div>
+              <div class="pax-row-label-desc">2 â€“ 11 years</div>
             </div>
             <div class="pax-row-controls">
-              <button type="button" class="pax-btn-circle pax-minus" data-target="childCount" data-min="0" data-max="9">−</button>
+              <button type="button" class="pax-btn-circle pax-minus" data-target="childCount" data-min="0" data-max="9">âˆ’</button>
               <span id="childCountDisplay" class="pax-count-display">0</span>
               <button type="button" class="pax-btn-circle pax-plus" data-target="childCount" data-min="0" data-max="9">+</button>
             </div>
@@ -167,7 +165,7 @@
               <div class="pax-row-label-desc">Under 2 years</div>
             </div>
             <div class="pax-row-controls">
-              <button type="button" class="pax-btn-circle pax-minus" data-target="infantCount" data-min="0" data-max="4">−</button>
+              <button type="button" class="pax-btn-circle pax-minus" data-target="infantCount" data-min="0" data-max="4">âˆ’</button>
               <span id="infantCountDisplay" class="pax-count-display">0</span>
               <button type="button" class="pax-btn-circle pax-plus" data-target="infantCount" data-min="0" data-max="4">+</button>
             </div>
@@ -192,7 +190,7 @@
 
       <div class="search-submit-wrap">
         <button type="submit" class="btn" id="searchBtn">
-          <span id="searchBtnText">✈️ Search Flights</span>
+          <span id="searchBtnText">âœˆï¸ Search Flights</span>
           <span class="btn-spinner" id="searchBtnSpinner"></span>
         </button>
       </div>
@@ -203,19 +201,19 @@
 <!-- Trust Indicators -->
 <div class="trust-strip">
   <div class="trust-item">
-    <div class="trust-item-icon">🔒</div>
+    <div class="trust-item-icon">ðŸ”’</div>
     <span>Secure Booking</span>
   </div>
   <div class="trust-item">
-    <div class="trust-item-icon">⚡</div>
+    <div class="trust-item-icon">âš¡</div>
     <span>Instant Confirmation</span>
   </div>
   <div class="trust-item">
-    <div class="trust-item-icon">💰</div>
+    <div class="trust-item-icon">ðŸ’°</div>
     <span>Best Prices</span>
   </div>
   <div class="trust-item">
-    <div class="trust-item-icon">🌍</div>
+    <div class="trust-item-icon">ðŸŒ</div>
     <span>Worldwide Coverage</span>
   </div>
 </div>
@@ -227,17 +225,17 @@
   
   <div class="features-grid">
     <div class="feature-card">
-      <div class="feature-icon blue">🛫</div>
+      <div class="feature-icon blue">ðŸ›«</div>
       <h3>Live Inventory Access</h3>
       <p>Connect directly to airline GDS and NDC sources including Amadeus, Verteil, and Brightsun for real-time availability.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon cyan">💳</div>
+      <div class="feature-icon cyan">ðŸ’³</div>
       <h3>Instant Payments</h3>
       <p>Secure checkout with Paystack integration. Pay in your local currency and receive instant ticket confirmation.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon green">📊</div>
+      <div class="feature-icon green">ðŸ“Š</div>
       <h3>B2B Wholesale Rates</h3>
       <p>Access exclusive partner-only pricing with transparent markups. Maximize your margins on every booking.</p>
     </div>
@@ -255,7 +253,7 @@
       <div class="destination-overlay">
         <span class="destination-code">LHR</span>
         <span class="destination-name">London, United Kingdom</span>
-        <span class="destination-price">From ₦450,000</span>
+        <span class="destination-price">From â‚¦450,000</span>
       </div>
     </div>
     <div class="destination-card">
@@ -263,7 +261,7 @@
       <div class="destination-overlay">
         <span class="destination-code">DXB</span>
         <span class="destination-name">Dubai, UAE</span>
-        <span class="destination-price">From ₦380,000</span>
+        <span class="destination-price">From â‚¦380,000</span>
       </div>
     </div>
     <div class="destination-card">
@@ -271,7 +269,7 @@
       <div class="destination-overlay">
         <span class="destination-code">CDG</span>
         <span class="destination-name">Paris, France</span>
-        <span class="destination-price">From ₦420,000</span>
+        <span class="destination-price">From â‚¦420,000</span>
       </div>
     </div>
     <div class="destination-card">
@@ -279,7 +277,7 @@
       <div class="destination-overlay">
         <span class="destination-code">NRT</span>
         <span class="destination-name">Tokyo, Japan</span>
-        <span class="destination-price">From ₦580,000</span>
+        <span class="destination-price">From â‚¦580,000</span>
       </div>
     </div>
   </div>
@@ -498,11 +496,11 @@
         <input name="leg_to" class="leg-input" placeholder="To (IATA)" maxlength="3" value="${toVal}" />
         <div class="date-field-wrap" style="position:relative; display:block; min-width:0;">
           <input type="text" class="leg-input leg-date-display date-display-input" placeholder="dd-mm-yyyy" maxlength="10" inputmode="numeric" autocomplete="off" value="${displayDateVal}" style="width:100%; padding-right:3rem;" />
-          <span aria-hidden="true" style="position:absolute; right:0.9rem; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-muted);">📅</span>
+          <span aria-hidden="true" style="position:absolute; right:0.9rem; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--text-muted);">ðŸ“…</span>
           <input type="date" class="leg-date-picker" title="Select leg date" aria-label="Select leg date" value="${dateVal}" min="${today}" style="position:absolute; right:0; top:0; width:3rem; height:100%; opacity:0; cursor:pointer;" />
         </div>
         <input name="leg_date" type="hidden" class="leg-date-hidden" value="${dateVal}" />
-        <button type="button" class="btn btn-secondary removeLeg" title="Delete this leg" aria-label="Delete leg">🗑️</button>
+        <button type="button" class="btn btn-secondary removeLeg" title="Delete this leg" aria-label="Delete leg">ðŸ—‘ï¸</button>
       `;
       wireDateInput(div.querySelector('.leg-date-display'), div.querySelector('.leg-date-hidden'), div.querySelector('.leg-date-picker'));
       return div;
@@ -637,7 +635,7 @@
         document.getElementById('searchBtn').disabled = true;
       }
     });
-    // ── Passenger Counter Dropdown ─────────────────────────────────────
+    // â”€â”€ Passenger Counter Dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const passengerToggle = document.getElementById('passengerToggle');
     const passengerDropdown = document.getElementById('passengerDropdown');
     const passengerSummary = document.getElementById('passengerSummary');
