@@ -708,6 +708,10 @@ body {
 .card-search {
   position: relative;
   z-index: 10;
+  /* Match the hero's full-bleed width by extending past the container padding */
+  width: calc(100% + 3rem);
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
   background:
     radial-gradient(circle at top left, rgba(0, 97, 255, 0.12), transparent 34%),
     radial-gradient(circle at bottom right, rgba(0, 212, 255, 0.1), transparent 34%),
@@ -718,6 +722,15 @@ body {
   box-shadow: 0 20px 60px rgba(0, 97, 255, 0.08), 0 8px 28px rgba(10, 15, 31, 0.06);
   overflow: visible;
 }
+
+@media (max-width: 768px) {
+  .card-search {
+    width: calc(100% + 2rem);
+    margin-left: -1rem;
+    margin-right: -1rem;
+  }
+}
+
 
 .card-search::after {
   content: '';
@@ -2998,11 +3011,6 @@ h3 {
   min-width: 0;
 }
 
-.card-search {
-  max-width: 1100px !important;
-  margin-left: auto;
-  margin-right: auto;
-}
 
 #searchForm {
   gap: 1.75rem !important;
