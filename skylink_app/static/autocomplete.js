@@ -52,8 +52,12 @@
       const rect = input.getBoundingClientRect();
       dropdown.style.top = (rect.bottom + 4) + 'px';
       dropdown.style.left = rect.left + 'px';
-      dropdown.style.width = rect.width + 'px';
+      // Make the dropdown at least as wide as the input, but never narrower
+      // than 360px so city/name/country never get truncated.
+      const minWidth = 360;
+      dropdown.style.width = Math.max(rect.width, minWidth) + 'px';
     }
+
 
     // Expose positioning so callers can reposition before display
     dropdown._positionDropdown = positionDropdown;
