@@ -88,9 +88,9 @@ body {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 2rem;
 }
 
 /* ===== HERO SECTION ===== */
@@ -627,8 +627,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
-  max-width: 1100px;
+  padding: 1rem 2rem;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -2532,9 +2532,9 @@ h3 {
 }
 
 .footer-inner {
-  max-width: 1100px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding: 0 2rem;
 }
 
 .footer-top {
@@ -2970,26 +2970,26 @@ h3 {
 }
 
 .card-search {
-  max-width: 1100px !important;
+  max-width: 1320px !important;
   margin-left: auto;
   margin-right: auto;
 }
 
 #searchForm {
-  gap: 1.5rem !important;
+  gap: 1.75rem !important;
 }
 
 /* The search grids below use !important to override any inline style */
 .search-main-grid {
-  grid-template-columns: 1.6fr 1.6fr 2.2fr 2.6fr 2.2fr !important;
-  gap: 1.25rem !important;
+  grid-template-columns: 1.8fr 1.8fr 2.4fr 2.8fr 2.4fr !important;
+  gap: 1.5rem !important;
   align-items: end !important;
   display: grid !important;
 }
 
 .search-secondary-grid {
-  grid-template-columns: 1.2fr 1fr auto !important;
-  gap: 1.25rem !important;
+  grid-template-columns: 1.4fr 1fr auto !important;
+  gap: 1.5rem !important;
   align-items: end !important;
   display: grid !important;
 }
