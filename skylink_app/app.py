@@ -56,6 +56,13 @@ logger = logging.getLogger("skylink")
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
 
+# Ensure all HTML responses include charset=utf-8 in Content-Type.
+@app.after_request
+def set_charset(response):
+    if response.content_type and response.content_type.startswith("text/html"):
+        response.headers["Content-Type"] = f"{response.content_type}; charset=utf-8"
+    return response
+
 TEST_BYPASS_MODE = os.getenv("TEST_BYPASS_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 SHOW_DEBUG_PANEL = os.getenv("SHOW_DEBUG_PANEL", "true").strip().lower() in {"1", "true", "yes", "on"}
 FLASK_DEBUG = os.getenv("FLASK_DEBUG", "true").strip().lower() in {"1", "true", "yes", "on"}
